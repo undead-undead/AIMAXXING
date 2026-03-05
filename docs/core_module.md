@@ -19,8 +19,20 @@ When an agent attempts to execute a native script or shell command (e.g., Python
 ### 2. Application-Layer Firewalls & Leak Detection
 Before a command even reaches the OS-level sandbox, it must pass through AIMAXXING's internal guards:
 - **Pre-flight Shell Firewall**: Analyzes the raw command intent. If the LLM generates a catastrophic or obviously malicious command (like `rm -rf /`, `mkfs`, or unauthorized root escalations), the execution is preemptively aborted and an error is fed back to the LLM.
-- **Secret Secret-in-Args Guard**: Ensures that API keys, DB passwords, and tokens are never accidentally leaked via command line arguments (`ps aux` visibility). It forces the LLM to use the encrypted Vault for environmental variable injections.
-- **Output Sanitization (Leak Detector)**: The standard output and standard error streams are actively scanned and cleaned. If a skill accidentally prints an API key to the log trace, the globally instantiated `LeakDetector` redacts it in real-time before the panel UI or database ever sees it.
+- **Secret-in-Args Guard**: Ensures that API keys, DB passwords, and tokens are never accidentally leaked via command line arguments (`ps aux` visibility). It forces the LLM to use the encrypted Vault for environmental variable injections.
+- **Output Sanitization (Leak Detector)**: The standard output and standard error streams are actively scanned and cleaned. The globally instantiated `LeakDetector` contains an arsenal of hardcoded **Regular Expressions** matching credentials for AWS, Stripe, Anthropic, OpenAI, GitHub, etc. Based on the pattern matched, the detector triggers a strict `LeakAction`:
+  - **`Redact`**: Instantly swaps the key for `***` without disrupting the workflow.
+  - **`Warn`**: Logs the potential leak (like a generic JWT or basic `Authorization` header) but allows execution.
+  - **`Block`**: Preemptively aborts and kills the sandbox entirely (used when a raw PEM Private Key is echoed).
+
+---
+
+## 🏗️ Seamless API & Schema Generation
+
+A major pain point in building agentic frameworks is maintaining synchronization between the Backend tools and the Frontend prompt schemas. `core` completely automates this logic:
+- **Write Once in Rust**: Developers implement the `Tool` trait alongside a strongly-typed Rust `struct` that represents the tool's input arguments. By deriving `JsonSchema` (using the `schemars` crate), the Rust compiler evaluates the struct at build-time.
+- **Frontend / LLM Automatic Generation**: The `generate_schema()` backend utility automatically parses the `schemars` type information and converts it directly into a standard OpenAPI JSON schema (or a raw TypeScript interface string). 
+- **Result**: The "Frontend" (which implies both the LLMs parsing system prompts, and the `aimaxxing-panel` visualizing tool settings automatically) receives these definitions dynamically. If an engineer adds a new `pub max_retries: u32` field to a skill in the backend, the GPT-4 agent and the UI know about it instantly without any manual duplicative JSON writing.
 
 ---
 
