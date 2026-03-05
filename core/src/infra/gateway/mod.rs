@@ -5,8 +5,8 @@
 //! # Example
 //!
 //! ```ignore
-//! use aimaxxing_core::infra::aimaxxing_gateway::Gateway;
-//! use aimaxxing_core::bus::MessageBus;
+//! use brain::infra::aimaxxing_gateway::Gateway;
+//! use brain::bus::MessageBus;
 //!
 //! let bus = MessageBus::new(100);
 //! let gateway = Gateway::builder()

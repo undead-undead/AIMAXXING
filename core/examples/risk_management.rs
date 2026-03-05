@@ -10,7 +10,7 @@
 /// - Slippage limits
 
 
-use aimaxxing_core::risk::{RiskManager, RiskConfig, TradeContext, InMemoryRiskStore};
+use brain::risk::{RiskManager, RiskConfig, TradeContext, InMemoryRiskStore};
 use std::sync::Arc;
 use rust_decimal_macros::dec;
 use anyhow::Result;

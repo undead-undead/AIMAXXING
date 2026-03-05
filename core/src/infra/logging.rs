@@ -3,7 +3,7 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use aimaxxing_core::infra::logging::init_logging;
+//! use brain::infra::logging::init_logging;
 //!
 //! init_logging("logs", "agent.log", "info").unwrap();
 //! ```

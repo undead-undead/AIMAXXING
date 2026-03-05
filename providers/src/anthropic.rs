@@ -8,7 +8,7 @@ use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result, Message, StreamingChoice, StreamingResponse, ToolDefinition, Provider, HttpConfig};
-use aimaxxing_core::agent::message::{Role, Content};
+use brain::agent::message::{Role, Content};
 
 const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -165,15 +165,15 @@ impl Anthropic {
                     Content::Text(text) => AnthropicContent::Text(text),
                     Content::Parts(parts) => {
                         let blocks = parts.into_iter().map(|part| match part {
-                            aimaxxing_core::agent::message::ContentPart::Text { text } => ContentBlock::Text { text },
-                            aimaxxing_core::agent::message::ContentPart::ToolCall { id, name, arguments } => {
+                            brain::agent::message::ContentPart::Text { text } => ContentBlock::Text { text },
+                            brain::agent::message::ContentPart::ToolCall { id, name, arguments } => {
                                 ContentBlock::ToolUse {
                                     id,
                                     name,
                                     input: arguments,
                                 }
                             },
-                            aimaxxing_core::agent::message::ContentPart::ToolResult { tool_call_id, content, .. } => {
+                            brain::agent::message::ContentPart::ToolResult { tool_call_id, content, .. } => {
                                 ContentBlock::ToolResult {
                                     tool_use_id: tool_call_id,
                                     content,
@@ -209,9 +209,9 @@ impl Anthropic {
 impl Provider for Anthropic {
     async fn stream_completion(
         &self,
-        request: aimaxxing_core::agent::provider::ChatRequest,
+        request: brain::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
-        let aimaxxing_core::agent::provider::ChatRequest {
+        let brain::agent::provider::ChatRequest {
             model,
             system_prompt,
             messages,
@@ -259,14 +259,14 @@ impl Provider for Anthropic {
         "anthropic"
     }
 
-    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
-        aimaxxing_core::agent::provider::ProviderMetadata {
+    fn metadata() -> brain::agent::provider::ProviderMetadata {
+        brain::agent::provider::ProviderMetadata {
             id: "anthropic".to_string(),
             name: "Anthropic".to_string(),
             description: "Claude models (3.5 Sonnet, Opus, Haiku) with excellent reasoning and long context.".to_string(),
             icon: "🎭".to_string(),
             fields: vec![
-                aimaxxing_core::agent::provider::ProviderField {
+                brain::agent::provider::ProviderField {
                     key: "ANTHROPIC_API_KEY".to_string(),
                     label: "API Key".to_string(),
                     field_type: "password".to_string(),
@@ -302,7 +302,7 @@ where
     let current_tool: Option<ToolState> = None;
     let tool_call_counter: usize = 0;
     let pending_messages: std::collections::VecDeque<String> = std::collections::VecDeque::new();
-    let usage = aimaxxing_core::agent::streaming::Usage::default();
+    let usage = brain::agent::streaming::Usage::default();
 
     futures::stream::unfold(
         (stream, sse_buffer, current_tool, tool_call_counter, pending_messages, usage),

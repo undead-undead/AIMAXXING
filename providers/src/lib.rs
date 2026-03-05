@@ -7,11 +7,11 @@
 #![warn(missing_docs)]
 
 // Re-export core types for convenience
-pub use aimaxxing_core::agent::message::Message;
-pub use aimaxxing_core::agent::provider::Provider;
-pub use aimaxxing_core::agent::streaming::{StreamingChoice, StreamingResponse};
-pub use aimaxxing_core::error::{Error, Result};
-pub use aimaxxing_core::skills::tool::ToolDefinition;
+pub use brain::agent::message::Message;
+pub use brain::agent::provider::Provider;
+pub use brain::agent::streaming::{StreamingChoice, StreamingResponse};
+pub use brain::error::{Error, Result};
+pub use brain::skills::tool::ToolDefinition;
 
 pub mod mock;
 pub use mock::MockProvider;
@@ -85,7 +85,7 @@ impl HttpConfig {
     }
 }
 
-/// Factory for creating aimaxxing_providers by name
+/// Factory for creating providers by name
 pub fn create_provider(
     name: &str,
     base_url: Option<String>,

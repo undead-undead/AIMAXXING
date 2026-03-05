@@ -1,5 +1,5 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::risk::{RiskManager, DeadManSwitch, TradeContext};
+use brain::prelude::*;
+use brain::risk::{RiskManager, DeadManSwitch, TradeContext};
 use std::sync::Arc;
 use std::path::PathBuf;
 use rust_decimal_macros::dec;

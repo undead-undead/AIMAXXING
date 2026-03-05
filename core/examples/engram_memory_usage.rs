@@ -11,12 +11,12 @@
 //!
 //! Run with:
 //! ```bash
-//! cargo run --package aimaxxing_core --example engram_memory_usage
+//! cargo run --package brain --example engram_memory_usage
 //! ```
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::skills::tool::memory::{RememberThisTool, SearchHistoryTool};
-use aimaxxing_engram::{EngramMemory, EngramStore};
+use brain::prelude::*;
+use brain::skills::tool::memory::{RememberThisTool, SearchHistoryTool};
+use engram::{EngramMemory, EngramStore};
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -24,17 +24,17 @@ use tempfile::TempDir;
 struct MockProvider;
 
 #[async_trait::async_trait]
-impl aimaxxing_core::agent::provider::Provider for MockProvider {
+impl brain::agent::provider::Provider for MockProvider {
     fn name(&self) -> &'static str {
         "mock"
     }
 
     async fn stream_completion(
         &self,
-        _request: aimaxxing_core::agent::provider::ChatRequest,
+        _request: brain::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         let response = "SOL (Solana) is a high-performance blockchain platform.";
-        use aimaxxing_core::agent::streaming::StreamingChoice;
+        use brain::agent::streaming::StreamingChoice;
         use futures::stream;
         let chunks = vec![Ok(StreamingChoice::Message(response.to_string()))];
         let stream = Box::pin(stream::iter(chunks));
@@ -60,9 +60,9 @@ async fn main() -> Result<()> {
     // 2. Create MemoryManager with Engram backend
     println!("🧠 Creating MemoryManager with Engram backend...");
     let memory = Arc::new(MemoryManager::new(
-        Arc::new(aimaxxing_core::agent::memory::InMemoryMemory::new()), // Hot tier
-        Arc::new(aimaxxing_engram::EngramMemory::new(Arc::new(
-            aimaxxing_engram::EngramStore::new(db_path.clone()).expect("Failed to create EngramStore"),
+        Arc::new(brain::agent::memory::InMemoryMemory::new()), // Hot tier
+        Arc::new(engram::EngramMemory::new(Arc::new(
+            engram::EngramStore::new(db_path.clone()).expect("Failed to create EngramStore"),
         ))), // Cold tier
     ));
     println!("✅ MemoryManager created\n");
@@ -116,7 +116,7 @@ async fn main() -> Result<()> {
     let remember_result = remember_tool
         .call(&remember_args.to_string())
         .await
-        .map_err(|e| aimaxxing_core::Error::Internal(e.to_string()))?;
+        .map_err(|e| brain::Error::Internal(e.to_string()))?;
     println!("✅ {}\n", remember_result);
 
     // 6. Demonstrate search_history tool
@@ -132,7 +132,7 @@ async fn main() -> Result<()> {
     let search_results = search_tool
         .call(&search_args.to_string())
         .await
-        .map_err(|e| aimaxxing_core::Error::Internal(e.to_string()))?;
+        .map_err(|e| brain::Error::Internal(e.to_string()))?;
     println!("{}\n", search_results);
 
     // 7. Show memory statistics

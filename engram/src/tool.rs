@@ -2,7 +2,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::json;
-use aimaxxing_core::skills::tool::{Tool, ToolDefinition};
+use brain::skills::tool::{Tool, ToolDefinition};
 use crate::HierarchicalRetriever;
 
 /// Tool that allows the Agent to perform deep recursive knowledge searches

@@ -1,4 +1,4 @@
-use aimaxxing_core::capabilities::{Sidecar, SidecarManager, SidecarConfig};
+use brain::capabilities::{Sidecar, SidecarManager, SidecarConfig};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

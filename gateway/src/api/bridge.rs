@@ -1,15 +1,15 @@
-use aimaxxing_core::agent::multi_agent::Coordinator;
-use aimaxxing_core::bus::{InboundMessage, OutboundMessage, MessageBus};
-use aimaxxing_core::session::store::SessionStore;
+use brain::agent::multi_agent::Coordinator;
+use brain::bus::{InboundMessage, OutboundMessage, MessageBus};
+use brain::session::store::SessionStore;
 
 use std::sync::Arc;
 use tracing::{info, error, debug, warn};
-use aimaxxing_core::agent::message::Message;
+use brain::agent::message::Message;
 use async_trait::async_trait;
 use moka::future::Cache;
 use std::time::Duration;
 
-use aimaxxing_engram::EngramStore;
+use engram::EngramStore;
 
 /// Implementation of SessionStore using Engram-KV backend.
 pub struct SqliteSessionStore {
@@ -24,32 +24,32 @@ impl SqliteSessionStore {
 
 #[async_trait]
 impl SessionStore for SqliteSessionStore {
-    async fn save(&self, id: &str, messages: &[Message]) -> aimaxxing_core::error::Result<()> {
+    async fn save(&self, id: &str, messages: &[Message]) -> brain::error::Result<()> {
         let data = serde_json::to_string(messages)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(format!("Failed to serialize session: {}", e)))?;
+            .map_err(|e| brain::error::Error::Internal(format!("Failed to serialize session: {}", e)))?;
             
         self.store.store_session(id, &data)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(format!("Failed to store session: {}", e)))?;
+            .map_err(|e| brain::error::Error::Internal(format!("Failed to store session: {}", e)))?;
             
         Ok(())
     }
 
-    async fn load(&self, id: &str) -> aimaxxing_core::error::Result<Option<Vec<Message>>> {
+    async fn load(&self, id: &str) -> brain::error::Result<Option<Vec<Message>>> {
         let data = self.store.get_session(id)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(format!("Failed to load session: {}", e)))?;
+            .map_err(|e| brain::error::Error::Internal(format!("Failed to load session: {}", e)))?;
             
         if let Some(s) = data {
             let messages = serde_json::from_str(&s)
-                .map_err(|e| aimaxxing_core::error::Error::Internal(format!("Failed to deserialize session: {}", e)))?;
+                .map_err(|e| brain::error::Error::Internal(format!("Failed to deserialize session: {}", e)))?;
             Ok(Some(messages))
         } else {
             Ok(None)
         }
     }
 
-    async fn delete_stale(&self, max_age_days: u32) -> aimaxxing_core::error::Result<usize> {
+    async fn delete_stale(&self, max_age_days: u32) -> brain::error::Result<usize> {
         self.store.delete_stale_sessions(max_age_days)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(format!("Failed to cleanup sessions: {}", e)))
+            .map_err(|e| brain::error::Error::Internal(format!("Failed to cleanup sessions: {}", e)))
     }
 }
 
@@ -98,7 +98,7 @@ impl AgentBridge {
                 let mut events_rx = agent.events();
                 tokio::spawn(async move {
                     while let Ok(event) = events_rx.recv().await {
-                        if let aimaxxing_core::agent::core::AgentEventData::ApprovalPending { tool, input } = event.data {
+                        if let brain::agent::core::AgentEventData::ApprovalPending { tool, input } = event.data {
                             info!("Relaying ApprovalPending for tool '{}' to external channels", tool);
                             // Relay to all configured outbound connectors
                             // In a real system, we'd map the session_id to specific channel/chat_id.

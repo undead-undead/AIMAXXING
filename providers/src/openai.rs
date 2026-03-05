@@ -10,7 +10,7 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result, Message, StreamingChoice, StreamingResponse, ToolDefinition, Provider, HttpConfig};
-use aimaxxing_core::agent::message::{Role, Content};
+use brain::agent::message::{Role, Content};
 
 /// OpenAI API client
 #[derive(Clone)]
@@ -215,18 +215,18 @@ impl OpenAI {
                     
                     for part in parts {
                         match part {
-                            aimaxxing_core::agent::message::ContentPart::Text { text } => {
+                            brain::agent::message::ContentPart::Text { text } => {
                                 text_acc.push_str(&text);
                                 json_parts.push(serde_json::json!({
                                     "type": "text",
                                     "text": text
                                 }));
                             },
-                                    aimaxxing_core::agent::message::ContentPart::Image { source } => {
+                                    brain::agent::message::ContentPart::Image { source } => {
                                 // Fix #8: Support Images (Url and Base64)
                                 let url = match source {
-                                    aimaxxing_core::agent::message::ImageSource::Url { url } => url,
-                                    aimaxxing_core::agent::message::ImageSource::Base64 { media_type, data } => {
+                                    brain::agent::message::ImageSource::Url { url } => url,
+                                    brain::agent::message::ImageSource::Base64 { media_type, data } => {
                                         format!("data:{};base64,{}", media_type, data)
                                     }
                                 };
@@ -239,7 +239,7 @@ impl OpenAI {
                                     }
                                 }));
                             },
-                             aimaxxing_core::agent::message::ContentPart::ToolCall { id, name, arguments } => {
+                             brain::agent::message::ContentPart::ToolCall { id, name, arguments } => {
                                 tool_calls.push(OpenAIToolCall {
                                     id,
                                     call_type: "function".to_string(),
@@ -249,7 +249,7 @@ impl OpenAI {
                                     },
                                 });
                             },
-                            aimaxxing_core::agent::message::ContentPart::ToolResult { tool_call_id: id, content, .. } => {
+                            brain::agent::message::ContentPart::ToolResult { tool_call_id: id, content, .. } => {
                                 tool_call_id = Some(id);
                                 text_acc = content; // Tool result content is simple string usually
                             },
@@ -314,9 +314,9 @@ impl OpenAI {
 impl Provider for OpenAI {
     async fn stream_completion(
         &self,
-        request: aimaxxing_core::agent::provider::ChatRequest,
+        request: brain::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
-        let aimaxxing_core::agent::provider::ChatRequest {
+        let brain::agent::provider::ChatRequest {
             model,
             system_prompt,
             messages,
@@ -383,14 +383,14 @@ impl Provider for OpenAI {
         "openai"
     }
 
-    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
-        aimaxxing_core::agent::provider::ProviderMetadata {
+    fn metadata() -> brain::agent::provider::ProviderMetadata {
+        brain::agent::provider::ProviderMetadata {
             id: "openai".to_string(),
             name: "OpenAI".to_string(),
             description: "Industry standard LLM provider supporting GPT-4o, o1, and more.".to_string(),
             icon: "🤖".to_string(),
             fields: vec![
-                aimaxxing_core::agent::provider::ProviderField {
+                brain::agent::provider::ProviderField {
                     key: "OPENAI_API_KEY".to_string(),
                     label: "API Key".to_string(),
                     field_type: "password".to_string(),
@@ -398,7 +398,7 @@ impl Provider for OpenAI {
                     required: true,
                     default: None,
                 },
-                aimaxxing_core::agent::provider::ProviderField {
+                brain::agent::provider::ProviderField {
                     key: "OPENAI_BASE_URL".to_string(),
                     label: "Base URL".to_string(),
                     field_type: "text".to_string(),
@@ -449,7 +449,7 @@ where
                                 // Check for usage (usually in the last chunk with stream_options)
                                 if let Some(usage) = chunk.usage {
                                     return Some((
-                                        Ok(StreamingChoice::Usage(aimaxxing_core::agent::streaming::Usage {
+                                        Ok(StreamingChoice::Usage(brain::agent::streaming::Usage {
                                             prompt_tokens: usage.prompt_tokens,
                                             completion_tokens: usage.completion_tokens,
                                             total_tokens: usage.total_tokens,
@@ -503,7 +503,7 @@ where
                                         for (index, state) in current_tools.drain() {
                                             if let (Some(id), Some(name)) = (state.id, state.name) {
                                                 if let Ok(args) = serde_json::from_str(&state.arguments) {
-                                                     tools_map.insert(index, aimaxxing_core::agent::message::ToolCall {
+                                                     tools_map.insert(index, brain::agent::message::ToolCall {
                                                         id,
                                                         name,
                                                         arguments: args, 
@@ -588,7 +588,7 @@ mod tests {
 
 // --- Embeddings Implementation ---
 
-use aimaxxing_core::knowledge::rag::Embeddings;
+use brain::knowledge::rag::Embeddings;
 
 #[derive(Debug, Serialize)]
 struct EmbeddingRequest {

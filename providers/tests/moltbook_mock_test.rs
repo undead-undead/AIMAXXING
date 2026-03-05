@@ -1,7 +1,7 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::skills::tool::{Tool, ToolDefinition};
-use aimaxxing_core::error::{Error};
-use aimaxxing_providers::mock::MockProvider;
+use brain::prelude::*;
+use brain::skills::tool::{Tool, ToolDefinition};
+use brain::error::{Error};
+use providers::mock::MockProvider;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};

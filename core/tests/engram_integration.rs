@@ -1,4 +1,4 @@
-//! Integration tests for aimaxxing_engram with aimaxxing_core
+//! Integration tests for engram with brain
 //!
 //! These tests verify that the Engram memory system integrates correctly with:
 //! - Memory trait implementation
@@ -7,10 +7,10 @@
 //! - MemoryManager
 //! - AgentBuilder
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::memory::{MemoryManager, InMemoryMemory};
-use aimaxxing_core::skills::tool::memory::{SearchHistoryTool, RememberThisTool};
-use aimaxxing_engram::{EngramMemory, EngramStore};
+use brain::prelude::*;
+use brain::agent::memory::{MemoryManager, InMemoryMemory};
+use brain::skills::tool::memory::{SearchHistoryTool, RememberThisTool};
+use engram::{EngramMemory, EngramStore};
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -151,20 +151,20 @@ async fn test_agent_with_memory_tools() {
     struct TestProvider;
     
     #[async_trait::async_trait]
-    impl aimaxxing_core::agent::provider::Provider for TestProvider {
+    impl brain::agent::provider::Provider for TestProvider {
         fn name(&self) -> &'static str {
             "test"
         }
         async fn stream_completion(
             &self,
-            _request: aimaxxing_core::agent::provider::ChatRequest,
-        ) -> aimaxxing_core::error::Result<aimaxxing_core::agent::streaming::StreamingResponse> {
+            _request: brain::agent::provider::ChatRequest,
+        ) -> brain::error::Result<brain::agent::streaming::StreamingResponse> {
             use futures::stream;
-            use aimaxxing_core::agent::streaming::StreamingChoice;
+            use brain::agent::streaming::StreamingChoice;
             
             let chunks = vec![Ok(StreamingChoice::Message("Test response".to_string()))];
             let stream = Box::pin(stream::iter(chunks));
-            Ok(aimaxxing_core::agent::streaming::StreamingResponse::from_stream(stream))
+            Ok(brain::agent::streaming::StreamingResponse::from_stream(stream))
         }
     }
     

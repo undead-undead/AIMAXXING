@@ -1,7 +1,7 @@
-use aimaxxing_core::memory::ShortTermMemory;
-use aimaxxing_core::memory::LongTermMemory;
-use aimaxxing_core::memory::Memory;
-use aimaxxing_core::message::Message;
+use brain::memory::ShortTermMemory;
+use brain::memory::LongTermMemory;
+use brain::memory::Memory;
+use brain::message::Message;
 use std::time::Duration;
 use std::path::PathBuf;
 

@@ -1,6 +1,6 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::context::ContextInjector;
-use aimaxxing_core::skills::ReadSkillDoc;
+use brain::prelude::*;
+use brain::agent::context::ContextInjector;
+use brain::skills::ReadSkillDoc;
 use std::sync::Arc;
 use tokio::fs;
 

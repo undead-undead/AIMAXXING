@@ -1,15 +1,15 @@
 use async_trait::async_trait;
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::provider::{Provider, ChatRequest};
-use aimaxxing_core::agent::streaming::{StreamingResponse, StreamingChoice};
-use aimaxxing_core::skills::tool::ToolSet;
+use brain::prelude::*;
+use brain::agent::provider::{Provider, ChatRequest};
+use brain::agent::streaming::{StreamingResponse, StreamingChoice};
+use brain::skills::tool::ToolSet;
 use futures::stream;
 use std::sync::Arc;
 
 struct MockProvider;
 #[async_trait]
 impl Provider for MockProvider {
-    async fn stream_completion(&self, _request: ChatRequest) -> aimaxxing_core::error::Result<StreamingResponse> {
+    async fn stream_completion(&self, _request: ChatRequest) -> brain::error::Result<StreamingResponse> {
         let stream = stream::iter(vec![
             Ok(StreamingChoice::Message("Hello".into())),
             Ok(StreamingChoice::Done),

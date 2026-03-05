@@ -346,7 +346,7 @@ mod tests {
     #[test]
     fn test_kv_basic_operations() {
         let dir = tempfile::tempdir().unwrap();
-        let db_path = dir.path().join("test.aimaxxing_engram");
+        let db_path = dir.path().join("test.engram");
         let kv = EngramKV::open(&db_path).unwrap();
 
         // Put and get document
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn test_kv_sessions() {
         let dir = tempfile::tempdir().unwrap();
-        let db_path = dir.path().join("test.aimaxxing_engram");
+        let db_path = dir.path().join("test.engram");
         let kv = EngramKV::open(&db_path).unwrap();
 
         kv.put_session("sess1", r#"{"id":"sess1","data":"test"}"#)
@@ -375,7 +375,7 @@ mod tests {
     #[test]
     fn test_kv_document_count() {
         let dir = tempfile::tempdir().unwrap();
-        let db_path = dir.path().join("test.aimaxxing_engram");
+        let db_path = dir.path().join("test.engram");
         let kv = EngramKV::open(&db_path).unwrap();
 
         assert_eq!(kv.document_count().unwrap(), 0);

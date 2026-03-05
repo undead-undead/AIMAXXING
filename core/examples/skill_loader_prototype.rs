@@ -1,6 +1,6 @@
 
-use aimaxxing_core::skills::tool::{Tool, ToolDefinition};
-use aimaxxing_core::error::{Result};
+use brain::skills::tool::{Tool, ToolDefinition};
+use brain::error::{Result};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 

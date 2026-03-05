@@ -8,9 +8,9 @@
 /// - Storing documents with metadata
 /// - Performing vector search (simulation)
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::store::file::{FileStore, FileStoreConfig};
-use aimaxxing_core::rag::{VectorStore, Document};
+use brain::prelude::*;
+use brain::store::file::{FileStore, FileStoreConfig};
+use brain::rag::{VectorStore, Document};
 use std::collections::HashMap;
 use anyhow::Result;
 use std::path::PathBuf;

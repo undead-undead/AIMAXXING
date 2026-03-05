@@ -1,10 +1,10 @@
 use crate::hybrid_search::HybridSearchEngine;
 #[cfg(feature = "vector")]
 use crate::quant::QuantLevel;
-use aimaxxing_core::agent::memory::Memory;
-use aimaxxing_core::agent::message::Message;
-use aimaxxing_core::agent::session::AgentSession;
-use aimaxxing_core::knowledge::rag::Document;
+use brain::agent::memory::Memory;
+use brain::agent::message::Message;
+use brain::agent::session::AgentSession;
+use brain::knowledge::rag::Document;
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -21,12 +21,12 @@ impl EngramMemory {
 
 #[async_trait]
 impl Memory for EngramMemory {
-    async fn store(&self, _user_id: &str, _agent_id: Option<&str>, _message: Message) -> aimaxxing_core::error::Result<()> {
+    async fn store(&self, _user_id: &str, _agent_id: Option<&str>, _message: Message) -> brain::error::Result<()> {
         // Conversation history stored via sessions, not individual messages
         Ok(())
     }
 
-    async fn store_knowledge(&self, _user_id: &str, _agent_id: Option<&str>, title: &str, content: &str, collection: &str, unverified: bool) -> aimaxxing_core::error::Result<()> {
+    async fn store_knowledge(&self, _user_id: &str, _agent_id: Option<&str>, title: &str, content: &str, collection: &str, unverified: bool) -> brain::error::Result<()> {
         let path = format!("manual/{}", uuid::Uuid::new_v4());
         
         #[cfg(feature = "vector")]
@@ -38,12 +38,12 @@ impl Memory for EngramMemory {
             };
             
             self.engine.index_at_level(collection, &path, title, content, level, unverified)
-                .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+                .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         }
         #[cfg(not(feature = "vector"))]
         {
             self.engine.index_document(collection, &path, title, content, unverified)
-                .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+                .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         }
         
         Ok(())
@@ -53,9 +53,9 @@ impl Memory for EngramMemory {
         Vec::new()
     }
 
-    async fn search(&self, _user_id: &str, _agent_id: Option<&str>, query: &str, limit: usize) -> aimaxxing_core::error::Result<Vec<Document>> {
+    async fn search(&self, _user_id: &str, _agent_id: Option<&str>, query: &str, limit: usize) -> brain::error::Result<Vec<Document>> {
         let results = self.engine.search(query, limit)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
 
         let docs = results.into_iter().map(|r| {
             let mut doc = Document {
@@ -79,29 +79,29 @@ impl Memory for EngramMemory {
         Ok(docs)
     }
 
-    async fn store_session(&self, session: AgentSession) -> aimaxxing_core::error::Result<()> {
+    async fn store_session(&self, session: AgentSession) -> brain::error::Result<()> {
         let data = serde_json::to_string(&session)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         self.engine.engram_store().store_session(&session.id, &data)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         Ok(())
     }
 
-    async fn retrieve_session(&self, session_id: &str) -> aimaxxing_core::error::Result<Option<AgentSession>> {
+    async fn retrieve_session(&self, session_id: &str) -> brain::error::Result<Option<AgentSession>> {
         let data = self.engine.engram_store().get_session(session_id)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         if let Some(json) = data {
             let session = serde_json::from_str(&json)
-                .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+                .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
             Ok(Some(session))
         } else {
             Ok(None)
         }
     }
 
-    async fn fetch_document(&self, collection: &str, path: &str) -> aimaxxing_core::error::Result<Option<Document>> {
+    async fn fetch_document(&self, collection: &str, path: &str) -> brain::error::Result<Option<Document>> {
         let doc = self.engine.engram_store().get_by_path(collection, path)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         Ok(doc.map(|d| Document {
             id: d.docid,
             title: d.title,
@@ -114,17 +114,17 @@ impl Memory for EngramMemory {
         }))
     }
 
-    async fn clear(&self, _user_id: &str, _agent_id: Option<&str>) -> aimaxxing_core::error::Result<()> {
+    async fn clear(&self, _user_id: &str, _agent_id: Option<&str>) -> brain::error::Result<()> {
         Ok(())
     }
 
-    async fn undo(&self, _user_id: &str, _agent_id: Option<&str>) -> aimaxxing_core::error::Result<Option<Message>> {
+    async fn undo(&self, _user_id: &str, _agent_id: Option<&str>) -> brain::error::Result<Option<Message>> {
         Ok(None)
     }
 
-    async fn list_unverified(&self, limit: usize) -> aimaxxing_core::error::Result<Vec<Message>> {
+    async fn list_unverified(&self, limit: usize) -> brain::error::Result<Vec<Message>> {
         let docs = self.engine.list_unverified(limit)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         
         let messages = docs.into_iter().map(|d| {
             let mut msg = Message::assistant(format!("[{}]: {}", d.title, d.body.unwrap_or_default()));
@@ -135,17 +135,17 @@ impl Memory for EngramMemory {
         Ok(messages)
     }
 
-    async fn mark_verified(&self, entry_content: &str) -> aimaxxing_core::error::Result<()> {
+    async fn mark_verified(&self, entry_content: &str) -> brain::error::Result<()> {
         // Broad search to find the document by content to mark it verified
         // Note: This is heuristic-based because the Memory trait uses content string as ID
         let docs = self.engine.list_unverified(100)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         
         for doc in docs {
             let doc_text = format!("[{}]: {}", doc.title, doc.body.as_ref().map(|s| s.as_str()).unwrap_or_default());
             if doc_text == entry_content {
                 self.engine.mark_verified(&doc.collection, &doc.path)
-                    .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+                    .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
                 
                 // Phase 14: Verification reward
                 let _ = self.engine.engram_store().update_utility(&doc.docid, 0.2);
@@ -156,34 +156,34 @@ impl Memory for EngramMemory {
         Ok(())
     }
 
-    async fn mark_pruned(&self, entry_content: &str) -> aimaxxing_core::error::Result<()> {
+    async fn mark_pruned(&self, entry_content: &str) -> brain::error::Result<()> {
         let docs = self.engine.list_unverified(100)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         
         for doc in docs {
             let doc_text = format!("[{}]: {}", doc.title, doc.body.as_ref().map(|s| s.as_str()).unwrap_or_default());
             if doc_text == entry_content {
                 self.engine.delete_document(&doc.collection, &doc.path)
-                    .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+                    .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
                 return Ok(());
             }
         }
         Ok(())
     }
 
-    async fn maintenance(&self) -> aimaxxing_core::error::Result<()> {
+    async fn maintenance(&self) -> brain::error::Result<()> {
         self.engine.engram_store().delete_stale_sessions(7)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         Ok(())
     }
 
-    async fn update_utility(&self, collection: &str, path: &str, increment: f32) -> aimaxxing_core::error::Result<()> {
+    async fn update_utility(&self, collection: &str, path: &str, increment: f32) -> brain::error::Result<()> {
         let doc = self.engine.engram_store().get_by_path(collection, path)
-            .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+            .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         
         if let Some(d) = doc {
             self.engine.engram_store().update_utility(&d.docid, increment)
-                .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+                .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
         }
         Ok(())
     }

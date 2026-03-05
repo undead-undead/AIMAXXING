@@ -3,8 +3,8 @@
 //! Demonstrates how an external messaging bridge (e.g., Telegram Bot)
 //! connects to the AIMAXXING Gateway to exchange messages.
 
-use aimaxxing_core::bus::message_bus::{InboundMessage, OutboundMessage};
-use aimaxxing_core::infra::aimaxxing_gateway::protocol::{ClientMessage, ServerMessage, ClientRole};
+use brain::bus::message_bus::{InboundMessage, OutboundMessage};
+use brain::infra::aimaxxing_gateway::protocol::{ClientMessage, ServerMessage, ClientRole};
 use futures::{SinkExt, StreamExt};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;

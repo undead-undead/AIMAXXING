@@ -8,8 +8,8 @@
 /// Prerequisite:
 /// - Set `OPENAI_API_KEY` in your environment or .env file
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_providers::openai::{OpenAI, GPT_4O};
+use brain::prelude::*;
+use providers::openai::{OpenAI, GPT_4O};
 use anyhow::Result;
 
 #[tokio::main]

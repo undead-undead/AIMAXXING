@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use aimaxxing_core::trading::risk::{RiskManager, RiskConfig, TradeContext, FileRiskStore};
-use aimaxxing_core::agent::memory::{MemoryManager};
-use aimaxxing_engram::{EngramMemory, EngramStore};
-use aimaxxing_core::prelude::*;
+use brain::trading::risk::{RiskManager, RiskConfig, TradeContext, FileRiskStore};
+use brain::agent::memory::{MemoryManager};
+use engram::{EngramMemory, EngramStore};
+use brain::prelude::*;
 use std::path::PathBuf;
 use rust_decimal_macros::dec;
 
@@ -30,8 +30,8 @@ async fn main() -> Result<()> {
     println!("\n--- 2. Testing Memory Isolation ---");
     let memory = Arc::new(
         MemoryManager::new(
-            Arc::new(aimaxxing_core::agent::memory::InMemoryMemory::new()), // Hot tier
-            Arc::new(aimaxxing_engram::EngramMemory::new(Arc::new(aimaxxing_engram::EngramStore::new("data/audit_engram").unwrap()))) // Cold tier
+            Arc::new(brain::agent::memory::InMemoryMemory::new()), // Hot tier
+            Arc::new(engram::EngramMemory::new(Arc::new(engram::EngramStore::new("data/audit_engram").unwrap()))) // Cold tier
         )
     );
     

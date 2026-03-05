@@ -1,6 +1,6 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_engram::{EngramMemory, EngramStore};
-use aimaxxing_core::skills::tool::memory::{TieredSearchTool, FetchDocumentTool};
+use brain::prelude::*;
+use engram::{EngramMemory, EngramStore};
+use brain::skills::tool::memory::{TieredSearchTool, FetchDocumentTool};
 use std::sync::Arc;
 use tempfile::TempDir;
 

@@ -74,7 +74,7 @@ impl RrfFusion {
     /// # Examples
     ///
     /// ```
-    /// use aimaxxing_engram::RrfFusion;
+    /// use engram::RrfFusion;
     ///
     /// let fusion = RrfFusion::new();
     ///

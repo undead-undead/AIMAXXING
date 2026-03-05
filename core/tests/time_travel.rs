@@ -1,6 +1,6 @@
-use aimaxxing_core::store::file::{FileStore, FileStoreConfig};
-use aimaxxing_core::rag::{VectorStore, Embeddings};
-use aimaxxing_core::error::Result;
+use brain::store::file::{FileStore, FileStoreConfig};
+use brain::rag::{VectorStore, Embeddings};
+use brain::error::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;

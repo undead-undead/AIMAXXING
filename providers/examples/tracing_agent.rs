@@ -12,8 +12,8 @@
 /// RUST_LOG=debug cargo run --example tracing_agent
 /// ```
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_providers::gemini::{Gemini, GEMINI_2_0_FLASH};
+use brain::prelude::*;
+use providers::gemini::{Gemini, GEMINI_2_0_FLASH};
 use anyhow::Result;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;

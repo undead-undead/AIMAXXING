@@ -2,7 +2,7 @@
 //!
 //! # Usage
 //! ```
-//! use aimaxxing_core::prelude::*;
+//! use brain::prelude::*;
 //! ```
 
 pub use crate::error::{Error, Result};

@@ -1,7 +1,7 @@
 
 #[tokio::test]
 async fn test_risk_manager_negative_amount() {
-    use aimaxxing_core::trading::risk::{RiskManager, TradeContext, RiskConfig, InMemoryRiskStore};
+    use brain::trading::risk::{RiskManager, TradeContext, RiskConfig, InMemoryRiskStore};
     use rust_decimal_macros::dec;
 
     let manager = RiskManager::new().await.unwrap();

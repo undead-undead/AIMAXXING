@@ -1,16 +1,16 @@
 use async_trait::async_trait;
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::provider::{Provider, ChatRequest};
-use aimaxxing_core::agent::streaming::{StreamingResponse, StreamingChoice};
-use aimaxxing_core::skills::tool::ToolSet;
-use aimaxxing_core::agent::core::AgentEvent;
+use brain::prelude::*;
+use brain::agent::provider::{Provider, ChatRequest};
+use brain::agent::streaming::{StreamingResponse, StreamingChoice};
+use brain::skills::tool::ToolSet;
+use brain::agent::core::AgentEvent;
 use futures::stream;
 use std::sync::Arc;
 
 struct MockProvider;
 #[async_trait]
 impl Provider for MockProvider {
-    async fn stream_completion(&self, request: ChatRequest) -> aimaxxing_core::error::Result<StreamingResponse> {
+    async fn stream_completion(&self, request: ChatRequest) -> brain::error::Result<StreamingResponse> {
         let has_tool_result = request.messages.iter().any(|m| matches!(m.role, Role::Tool));
         println!("[MockProvider] Message count: {}, has_tool_result: {}", request.messages.len(), has_tool_result);
         
@@ -38,7 +38,7 @@ impl Provider for MockProvider {
 
 struct TestTool;
 #[async_trait]
-impl aimaxxing_core::skills::tool::Tool for TestTool {
+impl brain::skills::tool::Tool for TestTool {
     fn name(&self) -> String { "test_tool".into() }
     async fn definition(&self) -> ToolDefinition {
         ToolDefinition {

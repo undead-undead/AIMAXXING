@@ -322,7 +322,7 @@ impl OpenAiCompatProvider {
 #[async_trait]
 impl Provider for OpenAiCompatProvider {
     fn name(&self) -> &'static str {
-        // Leak to get 'static — safe because aimaxxing_providers live for program duration
+        // Leak to get 'static — safe because providers live for program duration
         Box::leak(self.config.name.clone().into_boxed_str())
     }
 

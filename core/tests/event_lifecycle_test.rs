@@ -1,8 +1,8 @@
-use aimaxxing_core::agent::core::AgentEvent;
-use aimaxxing_core::agent::provider::{ChatRequest, Provider};
-use aimaxxing_core::agent::streaming::{StreamingChoice, StreamingResponse};
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::skills::tool::ToolSet;
+use brain::agent::core::AgentEvent;
+use brain::agent::provider::{ChatRequest, Provider};
+use brain::agent::streaming::{StreamingChoice, StreamingResponse};
+use brain::prelude::*;
+use brain::skills::tool::ToolSet;
 use async_trait::async_trait;
 use futures::stream;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ impl Provider for MockProvider {
     async fn stream_completion(
         &self,
         request: ChatRequest,
-    ) -> aimaxxing_core::error::Result<StreamingResponse> {
+    ) -> brain::error::Result<StreamingResponse> {
         let has_tool_result = request
             .messages
             .iter()
@@ -55,7 +55,7 @@ impl Provider for MockProvider {
 
 struct TestTool;
 #[async_trait]
-impl aimaxxing_core::skills::tool::Tool for TestTool {
+impl brain::skills::tool::Tool for TestTool {
     fn name(&self) -> String {
         "test_tool".into()
     }

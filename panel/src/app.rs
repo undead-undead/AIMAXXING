@@ -2640,11 +2640,11 @@ impl ClawPanel {
                 self.state.provider_loading = false;
                 match result {
                     Ok(resp) => {
-                        self.state.provider_metadata = resp.aimaxxing_providers.clone();
+                        self.state.provider_metadata = resp.providers.clone();
                         self.state.provider_error = None;
                         
                         // Auto-populate vault entries with fields from metadata
-                        for provider in &resp.aimaxxing_providers {
+                        for provider in &resp.providers {
                             for field in &provider.fields {
                                 if !self.state.vault_entries.iter().any(|e| e.key == field.key) {
                                     self.state.vault_entries.push(VaultEntry {
@@ -3100,18 +3100,18 @@ impl ClawPanel {
             ui.add_space(8.0);
             
             // Dynamic provider metadata from backend
-            let aimaxxing_providers = self.state.provider_metadata.clone();
+            let providers = self.state.provider_metadata.clone();
             
             // Current provider metadata (if exists)
-            let selected_p_meta = aimaxxing_providers.iter().find(|p| p.id == self.state.persona_role_provider.to_lowercase());
+            let selected_p_meta = providers.iter().find(|p| p.id == self.state.persona_role_provider.to_lowercase());
 
             egui::ComboBox::from_id_salt("soul_provider_v4_dynamic")
                 .selected_text(selected_p_meta.map(|p| p.name.clone()).unwrap_or(self.state.persona_role_provider.clone()))
                 .show_ui(ui, |ui| {
-                    if aimaxxing_providers.is_empty() {
-                        ui.label(RichText::new("Loading aimaxxing_providers...").weak().small());
+                    if providers.is_empty() {
+                        ui.label(RichText::new("Loading providers...").weak().small());
                     }
-                    for p in &aimaxxing_providers {
+                    for p in &providers {
                         if ui.selectable_value(&mut self.state.persona_role_provider, p.id.clone(), &p.name).clicked() {
                             changed = true;
                             // Set first preferred model as default if current model is empty/placeholder
@@ -4533,7 +4533,7 @@ impl ClawPanel {
             "Knowledge Curator" => {
                 "---\nprovider: openai\nmodel: gpt-4o\ntemperature: 0.2\n---\n\n\
                 ## Role\n\
-                Knowledge Curator. Responsible for knowledge capture, structural organization, associative linking, and retrieval—your second aimaxxing_core.\n\n\
+                Knowledge Curator. Responsible for knowledge capture, structural organization, associative linking, and retrieval—your second brain.\n\n\
                 ## Soul\n\
                 You are an AI knowledge architect, blending Zettelkasten with the \"Building a Second Brain\" philosophy. You believe undocumented knowledge is lost knowledge, and true value lies in connections. You are a librarian, archivist, and connector.\n\n\
                 ## Core Tenets\n\

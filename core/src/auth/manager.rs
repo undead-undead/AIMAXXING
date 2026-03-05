@@ -11,7 +11,7 @@ use tracing::info;
 use super::types::{OAuthConfig, OAuthToken};
 use super::store::TokenStore;
 
-/// Manages OAuth flows for multiple aimaxxing_providers
+/// Manages OAuth flows for multiple providers
 pub struct OAuthManager {
     clients: HashMap<String, BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>>,
     store: Arc<dyn TokenStore>,

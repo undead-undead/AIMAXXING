@@ -113,126 +113,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "aimaxxing-core"
-version = "0.3.5"
-dependencies = [
- "aho-corasick",
- "aimaxxing-engram",
- "anyhow",
- "argon2",
- "async-trait",
- "base64 0.21.7",
- "bytes",
- "chrono",
- "clap",
- "console-subscriber",
- "dashmap",
- "dirs 6.0.0",
- "fs2",
- "futures",
- "fxhash",
- "getrandom 0.2.17",
- "headless_chrome",
- "hex",
- "hmac",
- "keyring",
- "libc",
- "magic-wormhole",
- "oauth2",
- "once_cell",
- "openidconnect",
- "parking_lot",
- "rand 0.10.0",
- "rayon",
- "redb",
- "regex",
- "reqwest",
- "rquickjs",
- "rust_decimal",
- "rust_decimal_macros",
- "schemars 0.8.22",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "sha2",
- "simd-json",
- "tempfile",
- "thiserror 2.0.18",
- "tiktoken-rs",
- "tokio",
- "tokio-cron-scheduler",
- "tokio-test",
- "tokio-util",
- "tonic-build",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "tracing-wasm",
- "urlencoding",
- "uuid",
- "wasmtime",
- "wasmtime-wasi",
- "which",
- "windows-sys 0.52.0",
- "zip 0.6.6",
-]
-
-[[package]]
-name = "aimaxxing-engram"
-version = "0.3.5"
-dependencies = [
- "aimaxxing-core",
- "anyhow",
- "async-trait",
- "bincode",
- "candle-core",
- "candle-nn",
- "candle-transformers",
- "chrono",
- "futures",
- "glob",
- "hex",
- "hnsw_rs",
- "jieba-rs",
- "notify",
- "once_cell",
- "parking_lot",
- "redb",
- "serde",
- "serde_json",
- "sha2",
- "simsimd",
- "tempfile",
- "thiserror 1.0.69",
- "tokenizers",
- "tokio",
- "tokio-test",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "aimaxxing-gateway"
 version = "0.3.5"
 dependencies = [
- "aimaxxing-core",
- "aimaxxing-engram",
- "aimaxxing-providers",
  "anyhow",
  "async-stream",
  "async-trait",
  "axum",
+ "brain",
  "chrono",
  "clap",
  "colored",
  "dashmap",
  "dialoguer",
  "dotenv",
+ "engram",
  "futures",
  "indicatif",
  "moka",
  "parking_lot",
+ "providers",
  "regex",
  "reqwest",
  "serde",
@@ -275,30 +175,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
-]
-
-[[package]]
-name = "aimaxxing-providers"
-version = "0.3.5"
-dependencies = [
- "aimaxxing-core",
- "anyhow",
- "async-trait",
- "bytes",
- "chrono",
- "encoding_rs",
- "futures",
- "llama-cpp-2",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tokio-stream",
- "tokio-test",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -1017,6 +893,71 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "brain"
+version = "0.3.5"
+dependencies = [
+ "aho-corasick",
+ "anyhow",
+ "argon2",
+ "async-trait",
+ "base64 0.21.7",
+ "bytes",
+ "chrono",
+ "clap",
+ "console-subscriber",
+ "dashmap",
+ "dirs 6.0.0",
+ "engram",
+ "fs2",
+ "futures",
+ "fxhash",
+ "getrandom 0.2.17",
+ "headless_chrome",
+ "hex",
+ "hmac",
+ "keyring",
+ "libc",
+ "magic-wormhole",
+ "oauth2",
+ "once_cell",
+ "openidconnect",
+ "parking_lot",
+ "rand 0.10.0",
+ "rayon",
+ "redb",
+ "regex",
+ "reqwest",
+ "rquickjs",
+ "rust_decimal",
+ "rust_decimal_macros",
+ "schemars 0.8.22",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2",
+ "simd-json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tiktoken-rs",
+ "tokio",
+ "tokio-cron-scheduler",
+ "tokio-test",
+ "tokio-util",
+ "tonic-build",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "tracing-wasm",
+ "urlencoding",
+ "uuid",
+ "wasmtime",
+ "wasmtime-wasi",
+ "which",
+ "windows-sys 0.52.0",
+ "zip 0.6.6",
 ]
 
 [[package]]
@@ -2761,6 +2702,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "engram"
+version = "0.3.5"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bincode",
+ "brain",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "chrono",
+ "futures",
+ "glob",
+ "hex",
+ "hnsw_rs",
+ "jieba-rs",
+ "notify",
+ "once_cell",
+ "parking_lot",
+ "redb",
+ "serde",
+ "serde_json",
+ "sha2",
+ "simsimd",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokenizers",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -6814,6 +6790,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8991c4cbdb8bc5b11f0b074ffe286c30e523de90fee5ba8132f1399f23cb3dd7"
 dependencies = [
  "prost 0.14.3",
+]
+
+[[package]]
+name = "providers"
+version = "0.3.5"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "brain",
+ "bytes",
+ "chrono",
+ "encoding_rs",
+ "futures",
+ "llama-cpp-2",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tokio-test",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
 ]
 
 [[package]]

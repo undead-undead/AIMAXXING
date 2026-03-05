@@ -41,7 +41,7 @@ impl MiniMax {
 impl Provider for MiniMax {
     async fn stream_completion(
         &self,
-        request: aimaxxing_core::agent::provider::ChatRequest,
+        request: brain::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         self.inner.stream_completion(request).await
     }
@@ -50,14 +50,14 @@ impl Provider for MiniMax {
         "minimax"
     }
 
-    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
-        aimaxxing_core::agent::provider::ProviderMetadata {
+    fn metadata() -> brain::agent::provider::ProviderMetadata {
+        brain::agent::provider::ProviderMetadata {
             id: "minimax".to_string(),
             name: "MiniMax".to_string(),
             description: "High-performance Chinese and international LLM provider.".to_string(),
             icon: "🚀".to_string(),
             fields: vec![
-                aimaxxing_core::agent::provider::ProviderField {
+                brain::agent::provider::ProviderField {
                     key: "MINIMAX_API_KEY".to_string(),
                     label: "API Key".to_string(),
                     field_type: "password".to_string(),

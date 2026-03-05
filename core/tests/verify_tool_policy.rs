@@ -1,7 +1,7 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::core::{ToolPolicy, RiskyToolPolicy};
-use aimaxxing_core::skills::tool::{Tool, ToolDefinition};
-use aimaxxing_core::error::Result;
+use brain::prelude::*;
+use brain::agent::core::{ToolPolicy, RiskyToolPolicy};
+use brain::skills::tool::{Tool, ToolDefinition};
+use brain::error::Result;
 use async_trait::async_trait;
 use serde_json::json;
 use std::collections::HashMap;
@@ -50,8 +50,8 @@ impl Tool for SafeTool {
 }
 
 // Mock provider needed for Agent construction
-use aimaxxing_core::agent::provider::{Provider, ChatRequest};
-use aimaxxing_core::agent::streaming::StreamingResponse;
+use brain::agent::provider::{Provider, ChatRequest};
+use brain::agent::streaming::StreamingResponse;
 struct MockProvider;
 #[async_trait]
 impl Provider for MockProvider {
@@ -79,7 +79,7 @@ async fn test_tool_policy_disabled() {
 
     let result = agent.call_tool("nuke_db", "{}").await;
     match result {
-        Err(aimaxxing_core::error::Error::ToolExecution{message, ..}) => {
+        Err(brain::error::Error::ToolExecution{message, ..}) => {
             assert!(message.contains("disabled by policy"));
         },
         _ => panic!("Should have failed with policy error"),
@@ -104,7 +104,7 @@ async fn test_tool_policy_approval() {
 
     let result = agent.call_tool("nuke_db", "{}").await;
     match result {
-        Err(aimaxxing_core::error::Error::ToolApprovalRequired { tool_name }) => {
+        Err(brain::error::Error::ToolApprovalRequired { tool_name }) => {
             assert_eq!(tool_name, "nuke_db");
         },
         _ => panic!("Should have failed with approval required"),

@@ -2,7 +2,7 @@ use anyhow::Result;
 use colored::*;
 use dialoguer::{Input, Select, Password};
 use std::fs;
-use aimaxxing_core::config::AppConfig;
+use brain::config::AppConfig;
 
 pub async fn run_onboard() -> Result<()> {
     println!("{}", "Welcome to AIMAXXING Onboarding Wizard! 🧙‍♂️".bold().purple());
@@ -11,15 +11,15 @@ pub async fn run_onboard() -> Result<()> {
     let mut config = AppConfig::default();
     
     // 1. Provider Selection
-    let aimaxxing_providers = vec!["OpenAI", "Anthropic", "DeepSeek", "Gemini", "MiniMax"];
+    let providers = vec!["OpenAI", "Anthropic", "DeepSeek", "Gemini", "MiniMax"];
     let selection = Select::new()
         .with_prompt("Select your primary LLM provider")
         .default(0)
-        .items(&aimaxxing_providers)
+        .items(&providers)
         .interact()?;
 
-    let provider_name = aimaxxing_providers[selection];
-    config.aimaxxing_providers.active_provider = Some(provider_name.to_lowercase());
+    let provider_name = providers[selection];
+    config.providers.active_provider = Some(provider_name.to_lowercase());
 
     // 2. API Key
     let api_key = Password::new()
@@ -27,11 +27,11 @@ pub async fn run_onboard() -> Result<()> {
         .interact()?;
 
     match provider_name {
-        "OpenAI" => config.aimaxxing_providers.openai_api_key = Some(api_key),
-        "Anthropic" => config.aimaxxing_providers.anthropic_api_key = Some(api_key),
-        "DeepSeek" => config.aimaxxing_providers.deepseek_api_key = Some(api_key),
-        "Gemini" => config.aimaxxing_providers.gemini_api_key = Some(api_key),
-        "MiniMax" => config.aimaxxing_providers.minimax_api_key = Some(api_key),
+        "OpenAI" => config.providers.openai_api_key = Some(api_key),
+        "Anthropic" => config.providers.anthropic_api_key = Some(api_key),
+        "DeepSeek" => config.providers.deepseek_api_key = Some(api_key),
+        "Gemini" => config.providers.gemini_api_key = Some(api_key),
+        "MiniMax" => config.providers.minimax_api_key = Some(api_key),
         _ => {}
     }
 

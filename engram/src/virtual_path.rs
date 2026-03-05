@@ -27,7 +27,7 @@ impl VirtualPath {
     /// # Examples
     ///
     /// ```
-    /// # use aimaxxing_engram::virtual_path::VirtualPath;
+    /// # use engram::virtual_path::VirtualPath;
     /// let vpath = VirtualPath::parse("aimaxxing://trading/strategies/sol.md").unwrap();
     /// assert_eq!(vpath.collection, "trading");
     /// assert_eq!(vpath.path, "strategies/sol.md");
@@ -82,7 +82,7 @@ impl VirtualPath {
     /// # Examples
     ///
     /// ```
-    /// # use aimaxxing_engram::virtual_path::VirtualPath;
+    /// # use engram::virtual_path::VirtualPath;
     /// let vpath = VirtualPath::build("trading", "strategies/sol.md");
     /// assert_eq!(vpath, "aimaxxing://trading/strategies/sol.md");
     /// ```
@@ -99,7 +99,7 @@ impl VirtualPath {
     /// # Examples
     ///
     /// ```
-    /// # use aimaxxing_engram::virtual_path::VirtualPath;
+    /// # use engram::virtual_path::VirtualPath;
     /// assert!(VirtualPath::is_virtual("aimaxxing://trading/sol.md"));
     /// assert!(VirtualPath::is_virtual("//trading/sol.md"));
     /// assert!(!VirtualPath::is_virtual("trading/sol.md"));

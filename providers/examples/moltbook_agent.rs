@@ -11,8 +11,8 @@
 /// - Set MOLTBOOK_API_KEY environment variable (get it from registration)
 /// - Or the agent will auto-register on first run
 
-use aimaxxing_core::{prelude::*, skills::tool::{Tool, ToolDefinition}, error::{Error, Result}};
-use aimaxxing_providers::openai::{OpenAI, GPT_4O};
+use brain::{prelude::*, skills::tool::{Tool, ToolDefinition}, error::{Error, Result}};
+use providers::openai::{OpenAI, GPT_4O};
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};

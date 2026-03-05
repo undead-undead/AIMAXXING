@@ -1,6 +1,6 @@
-//! Comprehensive test for all AIMAXXING aimaxxing_providers
+//! Comprehensive test for all AIMAXXING providers
 //!
-//! This example tests all 8 supported LLM aimaxxing_providers and shows their capabilities.
+//! This example tests all 8 supported LLM providers and shows their capabilities.
 //!
 //! Run with: cargo run --example test_all_providers --features full
 //!
@@ -14,7 +14,7 @@
 //! - GROQ_API_KEY
 //! - OLLAMA_BASE_URL (optional, defaults to http://localhost:11434/v1)
 
-use aimaxxing_core::prelude::*;
+use brain::prelude::*;
 use std::time::Instant;
 
 #[tokio::main]
@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
     total_tests += 1;
     #[cfg(feature = "openai")]
     {
-        use aimaxxing_providers::openai::{OpenAI, GPT_4O_MINI};
+        use providers::openai::{OpenAI, GPT_4O_MINI};
         match test_provider(
             "OpenAI",
             OpenAI::from_env(),
@@ -70,7 +70,7 @@ async fn main() -> Result<()> {
     total_tests += 1;
     #[cfg(feature = "anthropic")]
     {
-        use aimaxxing_providers::anthropic::Anthropic;
+        use providers::anthropic::Anthropic;
         match test_provider(
             "Anthropic",
             Anthropic::from_env(),
@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
     total_tests += 1;
     #[cfg(feature = "gemini")]
     {
-        use aimaxxing_providers::gemini::Gemini;
+        use providers::gemini::Gemini;
         match test_provider(
             "Gemini",
             Gemini::from_env(),
@@ -122,7 +122,7 @@ async fn main() -> Result<()> {
     total_tests += 1;
     #[cfg(feature = "deepseek")]
     {
-        use aimaxxing_providers::deepseek::{DeepSeek, DEEPSEEK_CHAT};
+        use providers::deepseek::{DeepSeek, DEEPSEEK_CHAT};
         match test_provider(
             "DeepSeek",
             DeepSeek::from_env(),
@@ -148,7 +148,7 @@ async fn main() -> Result<()> {
     total_tests += 1;
     #[cfg(feature = "moonshot")]
     {
-        use aimaxxing_providers::moonshot::{Moonshot, MOONSHOT_V1_8K};
+        use providers::moonshot::{Moonshot, MOONSHOT_V1_8K};
         match test_provider(
             "Moonshot",
             Moonshot::from_env(),
@@ -174,7 +174,7 @@ async fn main() -> Result<()> {
     total_tests += 1;
     #[cfg(feature = "openrouter")]
     {
-        use aimaxxing_providers::openrouter::OpenRouter;
+        use providers::openrouter::OpenRouter;
         match test_provider(
             "OpenRouter",
             OpenRouter::from_env(),
@@ -200,7 +200,7 @@ async fn main() -> Result<()> {
     total_tests += 1;
     #[cfg(feature = "groq")]
     {
-        use aimaxxing_providers::groq::{Groq, LLAMA_3_1_8B};
+        use providers::groq::{Groq, LLAMA_3_1_8B};
         match test_provider(
             "Groq",
             Groq::from_env(),
@@ -226,7 +226,7 @@ async fn main() -> Result<()> {
     total_tests += 1;
     #[cfg(feature = "ollama")]
     {
-        use aimaxxing_providers::ollama::{Ollama, LLAMA_3_1_8B};
+        use providers::ollama::{Ollama, LLAMA_3_1_8B};
         match test_provider(
             "Ollama",
             Ollama::from_env(),
@@ -260,11 +260,11 @@ async fn main() -> Result<()> {
         println!("🎉 At least one provider is working!");
         println!();
         println!("💡 Tips:");
-        println!("   • Set more API keys to test other aimaxxing_providers");
+        println!("   • Set more API keys to test other providers");
         println!("   • For Ollama: Install and run 'ollama serve'");
         println!("   • Check GROQ_OLLAMA_GUIDE.md for setup instructions");
     } else {
-        println!("⚠️  No aimaxxing_providers succeeded.");
+        println!("⚠️  No providers succeeded.");
         println!();
         println!("💡 Setup Instructions:");
         println!("   1. Set at least one API key (e.g., export OPENAI_API_KEY=...)");

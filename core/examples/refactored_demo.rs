@@ -6,10 +6,10 @@
 /// 3. Improved error handling
 /// 4. Better resource management
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::memory::{ShortTermMemory, MemoryManager, InMemoryMemory};
-use aimaxxing_core::trading::risk::{RiskManager, RiskConfig, TradeContext};
-use aimaxxing_core::trading::risk::InMemoryRiskStore;
+use brain::prelude::*;
+use brain::agent::memory::{ShortTermMemory, MemoryManager, InMemoryMemory};
+use brain::trading::risk::{RiskManager, RiskConfig, TradeContext};
+use brain::trading::risk::InMemoryRiskStore;
 use std::sync::Arc;
 use std::path::PathBuf;
 use rust_decimal_macros::dec;

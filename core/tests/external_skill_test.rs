@@ -1,5 +1,5 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::skills::SkillLoader;
+use brain::prelude::*;
+use brain::skills::SkillLoader;
 use std::sync::Arc;
 use std::path::Path;
 

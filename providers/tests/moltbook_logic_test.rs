@@ -1,5 +1,5 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_providers::mock::MockProvider;
+use brain::prelude::*;
+use providers::mock::MockProvider;
 use serde_json::json;
 
 // Note: In a real integration test, you would import your tools from your crate.

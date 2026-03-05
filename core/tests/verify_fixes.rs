@@ -1,7 +1,7 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::memory::{MemoryManager, InMemoryMemory};
-use aimaxxing_engram::EngramMemory;
-use aimaxxing_core::trading::risk::{RiskManager, RiskConfig};
+use brain::prelude::*;
+use brain::agent::memory::{MemoryManager, InMemoryMemory};
+use engram::EngramMemory;
+use brain::trading::risk::{RiskManager, RiskConfig};
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use tempfile::tempdir;
@@ -12,7 +12,7 @@ async fn test_verify_memory_tiering_compilation() -> anyhow::Result<()> {
     let db_path = dir.path().join("test_memory.db");
     
     let hot = Arc::new(InMemoryMemory::new());
-    let cold = Arc::new(aimaxxing_engram::EngramMemory::new(Arc::new(aimaxxing_engram::EngramStore::new(db_path).expect("Failed to create EngramStore"))));
+    let cold = Arc::new(engram::EngramMemory::new(Arc::new(engram::EngramStore::new(db_path).expect("Failed to create EngramStore"))));
     let manager = MemoryManager::new(hot, cold);
     
     manager.store("user1", None, Message::user("hello".to_string())).await?;
@@ -39,7 +39,7 @@ fn test_verify_context_safety() {
         Message::user("recent message".to_string()),
     ];
     
-    let strategy = aimaxxing_core::agent::attempt::Strategy::Standard;
+    let strategy = brain::agent::attempt::Strategy::Standard;
     let ctx = futures::executor::block_on(mgr.build_context(&history, &strategy)).unwrap();
     assert_eq!(ctx.len(), 3);
 
@@ -56,7 +56,7 @@ fn test_verify_context_safety() {
 
 #[tokio::test]
 async fn test_verify_risk_zombie_cleanup() -> anyhow::Result<()> {
-    use aimaxxing_core::trading::risk::{FileRiskStore};
+    use brain::trading::risk::{FileRiskStore};
     // 1. Create a Risk Store on disk with dirty state
     let dir = tempdir()?;
     let db_path = dir.path().join("risk.json");
@@ -98,7 +98,7 @@ async fn test_verify_risk_zombie_cleanup() -> anyhow::Result<()> {
     // If pending=0: 100+800 = 900 <= 1000. OK.
     // If pending=500: 100+500+800 = 1400 > 1000. FAIL.
     
-    let ctx = aimaxxing_core::trading::risk::TradeContext {
+    let ctx = brain::trading::risk::TradeContext {
         user_id: "zombie_user".to_string(),
         from_token: "A".into(),
         to_token: "B".into(),

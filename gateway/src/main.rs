@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::info;
-use aimaxxing_core::skills::SkillLoader;
-use aimaxxing_core::prelude::Tool;
+use brain::skills::SkillLoader;
+use brain::prelude::Tool;
 use std::sync::Arc;
 
 
@@ -11,8 +11,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 use aimaxxing_gateway::mcp;
 use aimaxxing_gateway::api;
-use aimaxxing_core::agent::multi_agent::{Coordinator, AgentRole};
-use aimaxxing_engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever};
+use brain::agent::multi_agent::{Coordinator, AgentRole};
+use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever};
 
 
 // Providers and agent loading are now handled by AgentFactory in aimaxxing-gateway/src/api/factory.rs
@@ -189,7 +189,7 @@ async fn main() -> Result<()> {
     let skills_path = base_dir.join("skills");
     let envs_path = base_dir.join(".aimaxxing_envs");
 
-    let env_manager = Arc::new(aimaxxing_core::env::EnvManager::new(envs_path));
+    let env_manager = Arc::new(brain::env::EnvManager::new(envs_path));
     let loader = Arc::new(SkillLoader::new(skills_path).with_env_manager(env_manager));
     let loader_init = {
         let l = Arc::clone(&loader);
@@ -234,24 +234,24 @@ async fn main() -> Result<()> {
         }
         Commands::Web { port, provider: _, model: _ } => {
             let config_path = base_dir.join("aimaxxing.yaml");
-            let mut app_config = aimaxxing_core::config::AppConfig::load_from_file(&config_path)?;
+            let mut app_config = brain::config::AppConfig::load_from_file(&config_path)?;
             
             // CLI arg overrides config
             if port != 3000 || app_config.server.port == 0 {
                 app_config.server.port = port;
             }
 
-            use aimaxxing_core::auth::{OAuthManager, FileTokenStore};
+            use brain::auth::{OAuthManager, FileTokenStore};
 
             // Initialize OAuth manager
             let token_store = Arc::new(FileTokenStore::new(base_dir.join(".aimaxxing_tokens.json")));
             let mut oauth_manager = OAuthManager::new(token_store);
             
-            // Register OAuth aimaxxing_providers (Google example)
+            // Register OAuth providers (Google example)
             let google_id = std::env::var("GOOGLE_CLIENT_ID").ok();
             let google_secret = std::env::var("GOOGLE_CLIENT_SECRET").ok();
             if let (Some(id), Some(secret)) = (google_id, google_secret) {
-                let config = aimaxxing_core::auth::OAuthConfig {
+                let config = brain::auth::OAuthConfig {
                     client_id: id,
                     client_secret: secret,
                     auth_url: "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
@@ -277,7 +277,7 @@ async fn main() -> Result<()> {
             
             let data_dir = base_dir.join("data");
             let engram_config = HybridSearchConfig {
-                db_path: data_dir.join("aimaxxing_engram.db"),
+                db_path: data_dir.join("engram.db"),
                 ..Default::default()
             };
             
@@ -356,7 +356,7 @@ async fn main() -> Result<()> {
             if let Some(hb_agent) = coordinator.get(&AgentRole::Assistant) {
                 let hb_path_clone = heartbeat_path.clone();
                 tokio::spawn(async move {
-                    let watcher = aimaxxing_core::agent::heartbeat::HeartbeatWatcher::new(hb_agent, hb_path_clone, 30);
+                    let watcher = brain::agent::heartbeat::HeartbeatWatcher::new(hb_agent, hb_path_clone, 30);
                     watcher.run().await;
                 });
             } else {

@@ -17,28 +17,28 @@ use tower_http::timeout::TimeoutLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use std::time::Duration;
 
-use aimaxxing_core::skills::SkillLoader;
-// use aimaxxing_core::error::Error; // Removed unused import
-use aimaxxing_core::prelude::Tool;
+use brain::skills::SkillLoader;
+// use brain::error::Error; // Removed unused import
+use brain::prelude::Tool;
 
-use aimaxxing_engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever};
-use aimaxxing_core::knowledge::router::IntentRouter;
+use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever};
+use brain::knowledge::router::IntentRouter;
 
 
 
 use crate::api::bridge::AgentBridge;
-use aimaxxing_core::bus::MessageBus;
-use aimaxxing_core::connectors::{Connector, telegram::TelegramConnector, discord::DiscordConnector, feishu::FeishuConnector, dingtalk::DingTalkConnector, im::BarkConnector};
-use aimaxxing_core::agent::multi_agent::{Coordinator, AgentRole};
+use brain::bus::MessageBus;
+use brain::connectors::{Connector, telegram::TelegramConnector, discord::DiscordConnector, feishu::FeishuConnector, dingtalk::DingTalkConnector, im::BarkConnector};
+use brain::agent::multi_agent::{Coordinator, AgentRole};
 
 /// App state shared across handlers
 #[derive(Clone)]
 pub struct AppState {
     pub skills: Arc<SkillLoader>,
     pub coordinator: Arc<Coordinator>, 
-    pub oauth: Arc<aimaxxing_core::auth::OAuthManager>,
+    pub oauth: Arc<brain::auth::OAuthManager>,
     pub security: Arc<crate::api::security::SecurityManager>,
-    pub config: Arc<parking_lot::RwLock<aimaxxing_core::config::AppConfig>>,
+    pub config: Arc<parking_lot::RwLock<brain::config::AppConfig>>,
     pub enabled_tools: Arc<parking_lot::RwLock<std::collections::HashSet<String>>>,
     pub config_path: PathBuf,
     pub heartbeat_path: PathBuf,
@@ -65,8 +65,8 @@ use std::path::PathBuf;
 pub async fn start_server(
     loader: Arc<SkillLoader>, 
     coordinator: Arc<Coordinator>, 
-    oauth: Arc<aimaxxing_core::auth::OAuthManager>,
-    config: Arc<parking_lot::RwLock<aimaxxing_core::config::AppConfig>>,
+    oauth: Arc<brain::auth::OAuthManager>,
+    config: Arc<parking_lot::RwLock<brain::config::AppConfig>>,
     enabled_tools: Arc<parking_lot::RwLock<std::collections::HashSet<String>>>,
     config_path: PathBuf,
     heartbeat_path: PathBuf,
@@ -141,7 +141,7 @@ pub async fn start_server(
         .route("/api/skills/{name}", axum::routing::delete(uninstall_skill))
         .route("/api/skills/{name}/run", post(run_skill))
         .route("/api/skills/{name}/toggle", post(toggle_skill))
-        .route("/api/aimaxxing_providers/schema", get(get_provider_schema))
+        .route("/api/providers/schema", get(get_provider_schema))
         .route("/api/chat", post(chat_handler))
         .route("/api/auth/{provider}/initiate", get(auth_initiate_handler))
         .route("/api/auth/{provider}/callback", get(auth_callback_handler))
@@ -527,7 +527,7 @@ async fn chat_handler(
     }
 
     // Wrap the message in a collection for the chat API
-    use aimaxxing_core::agent::message::Message as AgentMessage;
+    use brain::agent::message::Message as AgentMessage;
     let messages = vec![AgentMessage::user(payload.message.clone())];
 
     let response = state.coordinator.chat_session(&session_id, messages).await
@@ -573,13 +573,13 @@ async fn auth_callback_handler(
 
 async fn get_config(
     State(state): State<AppState>,
-) -> Json<aimaxxing_core::config::AppConfig> {
+) -> Json<brain::config::AppConfig> {
     let mut config = state.config.read().clone();
     // Mask API keys for safety
-    if config.aimaxxing_providers.openai_api_key.is_some() { config.aimaxxing_providers.openai_api_key = Some("********".to_string()); }
-    if config.aimaxxing_providers.anthropic_api_key.is_some() { config.aimaxxing_providers.anthropic_api_key = Some("********".to_string()); }
-    if config.aimaxxing_providers.gemini_api_key.is_some() { config.aimaxxing_providers.gemini_api_key = Some("********".to_string()); }
-    if config.aimaxxing_providers.deepseek_api_key.is_some() { config.aimaxxing_providers.deepseek_api_key = Some("********".to_string()); }
+    if config.providers.openai_api_key.is_some() { config.providers.openai_api_key = Some("********".to_string()); }
+    if config.providers.anthropic_api_key.is_some() { config.providers.anthropic_api_key = Some("********".to_string()); }
+    if config.providers.gemini_api_key.is_some() { config.providers.gemini_api_key = Some("********".to_string()); }
+    if config.providers.deepseek_api_key.is_some() { config.providers.deepseek_api_key = Some("********".to_string()); }
     Json(config)
 }
 
@@ -593,7 +593,7 @@ async fn save_vault_secret(
     State(state): State<AppState>,
     Json(payload): Json<SaveVaultRequest>,
 ) -> Result<StatusCode, AppError> {
-    use aimaxxing_core::config::vault::{KeyringVault, SecretVault};
+    use brain::config::vault::{KeyringVault, SecretVault};
     
     // We target the KeyringVault specifically for persistent secure storage
     let vault = KeyringVault::new("aimaxxing");
@@ -617,30 +617,30 @@ async fn save_vault_secret(
     if !standard.contains(&name.as_str()) && !name.is_empty() {
         let mut cfg = state.config.write();
         
-        // Handle custom LLM aimaxxing_providers
-        if !cfg.aimaxxing_providers.custom_providers.contains(&name) && !name.starts_with("telegram") && !name.starts_with("discord") && !name.starts_with("bark") {
+        // Handle custom LLM providers
+        if !cfg.providers.custom_providers.contains(&name) && !name.starts_with("telegram") && !name.starts_with("discord") && !name.starts_with("bark") {
             println!("ClawGateway: [CONFIG] Adding custom provider '{}' to aimaxxing.yaml", name);
-            cfg.aimaxxing_providers.custom_providers.push(name.clone());
+            cfg.providers.custom_providers.push(name.clone());
         }
 
         // Apply channel config updates immediately
         if name == "telegram_bot_token" {
-            let mut tg = cfg.connectors.telegram.clone().unwrap_or_else(|| aimaxxing_core::config::TelegramConfig { bot_token: String::new(), allowed_chat_ids: vec![] });
+            let mut tg = cfg.connectors.telegram.clone().unwrap_or_else(|| brain::config::TelegramConfig { bot_token: String::new(), allowed_chat_ids: vec![] });
             tg.bot_token = value.to_string();
             cfg.connectors.telegram = Some(tg);
             println!("ClawGateway: [CONFIG] Telegram Bot Token updated in config memory");
         } else if name == "discord_bot_token" {
-            let mut ds = cfg.connectors.discord.clone().unwrap_or_else(|| aimaxxing_core::config::DiscordConfig { bot_token: String::new(), channel_ids: vec![] });
+            let mut ds = cfg.connectors.discord.clone().unwrap_or_else(|| brain::config::DiscordConfig { bot_token: String::new(), channel_ids: vec![] });
             ds.bot_token = value.to_string();
             cfg.connectors.discord = Some(ds);
             println!("ClawGateway: [CONFIG] Discord Bot Token updated in config memory");
         } else if name == "bark_device_key" {
-            let mut im = cfg.connectors.im.clone().unwrap_or_else(|| aimaxxing_core::config::BarkConfig { server_url: "https://api.day.app".to_string(), device_key: String::new() });
+            let mut im = cfg.connectors.im.clone().unwrap_or_else(|| brain::config::BarkConfig { server_url: "https://api.day.app".to_string(), device_key: String::new() });
             im.device_key = value.to_string();
             cfg.connectors.im = Some(im);
             println!("ClawGateway: [CONFIG] Bark Device Key updated in config memory");
         } else if name == "bark_server_url" {
-            let mut im = cfg.connectors.im.clone().unwrap_or_else(|| aimaxxing_core::config::BarkConfig { server_url: String::new(), device_key: String::new() });
+            let mut im = cfg.connectors.im.clone().unwrap_or_else(|| brain::config::BarkConfig { server_url: String::new(), device_key: String::new() });
             im.server_url = value.to_string();
             cfg.connectors.im = Some(im);
             println!("ClawGateway: [CONFIG] Bark Server URL updated in config memory");
@@ -656,7 +656,7 @@ async fn delete_vault_secret(
     State(state): State<AppState>,
     Path(key): Path<String>,
 ) -> Result<StatusCode, AppError> {
-    use aimaxxing_core::config::vault::{KeyringVault, SecretVault};
+    use brain::config::vault::{KeyringVault, SecretVault};
     
     let key = key.to_uppercase();
     let vault = KeyringVault::new("aimaxxing");
@@ -676,10 +676,10 @@ async fn delete_vault_secret(
     
     let mut cfg = state.config.write();
     
-    // Remove custom aimaxxing_providers
-    if let Some(pos) = cfg.aimaxxing_providers.custom_providers.iter().position(|x| x == &name) {
+    // Remove custom providers
+    if let Some(pos) = cfg.providers.custom_providers.iter().position(|x| x == &name) {
         println!("ClawGateway: [CONFIG] Removing custom provider '{}' from aimaxxing.yaml", name);
-        cfg.aimaxxing_providers.custom_providers.remove(pos);
+        cfg.providers.custom_providers.remove(pos);
     }
 
     // Handle channel disconnects
@@ -700,16 +700,16 @@ async fn delete_vault_secret(
 }
 async fn update_config(
     State(state): State<AppState>,
-    Json(new_config): Json<aimaxxing_core::config::AppConfig>,
+    Json(new_config): Json<brain::config::AppConfig>,
 ) -> Result<StatusCode, AppError> {
     let mut config = state.config.write();
     
     // Update fields (only if not masked)
-    if let Some(key) = new_config.aimaxxing_providers.openai_api_key {
-        if key != "********" { config.aimaxxing_providers.openai_api_key = Some(key); }
+    if let Some(key) = new_config.providers.openai_api_key {
+        if key != "********" { config.providers.openai_api_key = Some(key); }
     }
-    if let Some(key) = new_config.aimaxxing_providers.anthropic_api_key {
-        if key != "********" { config.aimaxxing_providers.anthropic_api_key = Some(key); }
+    if let Some(key) = new_config.providers.anthropic_api_key {
+        if key != "********" { config.providers.anthropic_api_key = Some(key); }
     }
     // ... update others ...
     config.server = new_config.server;
@@ -734,7 +734,7 @@ async fn update_config(
 
 async fn get_persona(
     State(state): State<AppState>,
-) -> Json<Option<aimaxxing_core::agent::personality::Persona>> {
+) -> Json<Option<brain::agent::personality::Persona>> {
     let persona = if let Some(assistant) = state.coordinator.get(&AgentRole::Assistant) {
         if let Some(lock) = assistant.persona() {
             lock.read().clone()
@@ -749,7 +749,7 @@ async fn get_persona(
 
 async fn update_persona(
     State(state): State<AppState>,
-    Json(new_persona): Json<aimaxxing_core::agent::personality::Persona>,
+    Json(new_persona): Json<brain::agent::personality::Persona>,
 ) -> Result<StatusCode, AppError> {
     let mut config = state.config.write();
     
@@ -933,7 +933,7 @@ async fn export_soul(
     Path(role): Path<String>,
     State(state): State<AppState>,
     Json(payload): Json<ExportSoulRequest>,
-) -> Result<Json<aimaxxing_core::agent::identity::vessel_pack::VesselPackage>, AppError> {
+) -> Result<Json<brain::agent::identity::vessel_pack::VesselPackage>, AppError> {
     if role.contains("..") || role.contains('/') {
         return Err(AppError(anyhow::anyhow!("Invalid role parameter")));
     }
@@ -952,7 +952,7 @@ async fn export_soul(
     let memory = state.coordinator.memory.get().map(|m| m.as_ref());
     let user_id = "default"; // Standard web user
 
-    let package = aimaxxing_core::agent::identity::vessel_pack::VesselPackage::pack(
+    let package = brain::agent::identity::vessel_pack::VesselPackage::pack(
         &role_dir,
         Some("AIMAXXING User".to_string()),
         memory,
@@ -1043,7 +1043,7 @@ async fn cancel_handler(
     (StatusCode::OK, format!("Cancelled {} active task(s)", count))
 }
 
-use aimaxxing_core::connectors::ChannelMetadata;
+use brain::connectors::ChannelMetadata;
 
 #[derive(Serialize)]
 struct ChannelSchemaResponse {
@@ -1072,17 +1072,17 @@ async fn get_channel_schema(
 
 #[derive(Serialize)]
 pub struct ProviderSchemaResponse {
-    pub aimaxxing_providers: Vec<aimaxxing_core::agent::provider::ProviderMetadata>,
+    pub providers: Vec<brain::agent::provider::ProviderMetadata>,
 }
 
 async fn get_provider_schema() -> Json<ProviderSchemaResponse> {
-    use aimaxxing_providers::{
+    use providers::{
         openai::OpenAI, gemini::Gemini, anthropic::Anthropic, deepseek::DeepSeek, 
         ollama::Ollama, minimax::MiniMax, groq::Groq, openrouter::OpenRouter
     };
-    use aimaxxing_core::agent::provider::Provider;
+    use brain::agent::provider::Provider;
 
-    let aimaxxing_providers = vec![
+    let providers = vec![
         OpenAI::metadata(),
         Anthropic::metadata(),
         Gemini::metadata(),
@@ -1093,7 +1093,7 @@ async fn get_provider_schema() -> Json<ProviderSchemaResponse> {
         Ollama::metadata(),
     ];
     
-    Json(ProviderSchemaResponse { aimaxxing_providers })
+    Json(ProviderSchemaResponse { providers })
 }
 
 // --- Tasks Handlers ---
@@ -1401,24 +1401,24 @@ async fn metrics_handler(
 
     for (name, val) in snapshot {
         if name.ends_with(":tool_calls_total") {
-            if let aimaxxing_core::infra::observable::MetricValue::Counter(c) = val {
+            if let brain::infra::observable::MetricValue::Counter(c) = val {
                 total_calls += c;
             }
         } else if name.ends_with(":tool_errors_total") {
-            if let aimaxxing_core::infra::observable::MetricValue::Counter(c) = val {
+            if let brain::infra::observable::MetricValue::Counter(c) = val {
                 total_errors += c;
             }
         } else if name.ends_with(":tool_duration_ms") {
-            if let aimaxxing_core::infra::observable::MetricValue::Histogram { count, sum, .. } = val {
+            if let brain::infra::observable::MetricValue::Histogram { count, sum, .. } = val {
                 total_latencies_sum += sum;
                 total_latencies_count += count;
             }
         } else if name.ends_with(":tokens_total") {
-            if let aimaxxing_core::infra::observable::MetricValue::Counter(c) = val { total_tokens += c; }
+            if let brain::infra::observable::MetricValue::Counter(c) = val { total_tokens += c; }
         } else if name.ends_with(":tokens_prompt_total") {
-            if let aimaxxing_core::infra::observable::MetricValue::Counter(c) = val { prompt_tokens += c; }
+            if let brain::infra::observable::MetricValue::Counter(c) = val { prompt_tokens += c; }
         } else if name.ends_with(":tokens_completion_total") {
-            if let aimaxxing_core::infra::observable::MetricValue::Counter(c) = val { completion_tokens += c; }
+            if let brain::infra::observable::MetricValue::Counter(c) = val { completion_tokens += c; }
         }
     }
 
@@ -1483,8 +1483,8 @@ struct CronJobDto {
 }
 
 #[cfg(feature = "cron")]
-fn to_cron_dto(job: &aimaxxing_core::agent::scheduler::CronJob) -> CronJobDto {
-    use aimaxxing_core::agent::scheduler::{JobSchedule, JobPayload};
+fn to_cron_dto(job: &brain::agent::scheduler::CronJob) -> CronJobDto {
+    use brain::agent::scheduler::{JobSchedule, JobPayload};
     let schedule_json = serde_json::to_value(&job.schedule).unwrap_or_default();
     let payload_kind = match &job.payload {
         JobPayload::AgentTurn { .. } => "agentTurn",
@@ -1533,8 +1533,8 @@ async fn create_cron_job(
 ) -> Result<Json<CronJobDto>, AppError> {
     #[cfg(feature = "cron")]
     {
-        use aimaxxing_core::agent::scheduler::{JobSchedule, JobPayload};
-        use aimaxxing_core::agent::multi_agent::AgentRole;
+        use brain::agent::scheduler::{JobSchedule, JobPayload};
+        use brain::agent::multi_agent::AgentRole;
 
         let schedule = match req.schedule_kind.as_str() {
             "every" => JobSchedule::Every {
@@ -1696,16 +1696,16 @@ async fn gateway_snapshot(
     ];
 
     let mut vault_keys = Vec::new();
-    let vault = aimaxxing_core::config::vault::KeyringVault::new("aimaxxing");
+    let vault = brain::config::vault::KeyringVault::new("aimaxxing");
     let standard = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "MINIMAX_API_KEY"];
     for k in &standard {
-        use aimaxxing_core::config::vault::SecretVault;
+        use brain::config::vault::SecretVault;
         if let Ok(Some(_)) = vault.get(k) {
             vault_keys.push(k.to_string());
         }
     }
-    for p in &config.aimaxxing_providers.custom_providers {
-        use aimaxxing_core::config::vault::SecretVault;
+    for p in &config.providers.custom_providers {
+        use brain::config::vault::SecretVault;
         let k = format!("{}_API_KEY", p.to_uppercase());
         if let Ok(Some(_)) = vault.get(&k) {
             if !vault_keys.contains(&k) {
@@ -1722,7 +1722,7 @@ async fn gateway_snapshot(
         skill_count: state.skills.skills.len(),
         cron_job_count,
         connectors,
-        custom_providers: config.aimaxxing_providers.custom_providers.clone(),
+        custom_providers: config.providers.custom_providers.clone(),
         vault_keys,
     })
 }
@@ -2280,9 +2280,9 @@ async fn shutdown_handler() -> (StatusCode, Json<serde_json::Value>) {
 }
 
 // ── System Sandboxes Handlers ──────────────────────────────────────────────
-async fn get_active_sandboxes() -> Json<Vec<aimaxxing_core::skills::sandbox::ActiveSandboxContext>> {
+async fn get_active_sandboxes() -> Json<Vec<brain::skills::sandbox::ActiveSandboxContext>> {
     let mut sandboxes = Vec::new();
-    for entry in aimaxxing_core::skills::sandbox::ACTIVE_SANDBOXES.iter() {
+    for entry in brain::skills::sandbox::ACTIVE_SANDBOXES.iter() {
         sandboxes.push(entry.value().clone());
     }
     // Sort by started_at ascending
@@ -2292,7 +2292,7 @@ async fn get_active_sandboxes() -> Json<Vec<aimaxxing_core::skills::sandbox::Act
 
 async fn kill_sandbox(Path(pid): Path<u32>) -> (StatusCode, Json<serde_json::Value>) {
     // 1. Check if PID is in our registry
-    if !aimaxxing_core::skills::sandbox::ACTIVE_SANDBOXES.contains_key(&pid) {
+    if !brain::skills::sandbox::ACTIVE_SANDBOXES.contains_key(&pid) {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({
             "success": false,
             "message": format!("Sandbox PID {} not found or already terminated", pid)
@@ -2311,7 +2311,7 @@ async fn kill_sandbox(Path(pid): Path<u32>) -> (StatusCode, Json<serde_json::Val
         .output();
 
     // 3. Remove regardless of OS kill output since we assume it's dead
-    aimaxxing_core::skills::sandbox::ACTIVE_SANDBOXES.remove(&pid);
+    brain::skills::sandbox::ACTIVE_SANDBOXES.remove(&pid);
 
     match output {
         Ok(o) if o.status.success() => {
@@ -2396,7 +2396,7 @@ async fn doctor_api_handler() -> Json<Vec<DoctorCheckResult>> {
     }
 
     // 3. Vector DB Check
-    let db_path = std::env::current_dir().unwrap_or_default().join("aimaxxing_engram.db");
+    let db_path = std::env::current_dir().unwrap_or_default().join("engram.db");
     if db_path.exists() {
          results.push(DoctorCheckResult {
             name: "Memory Store (SQLite)".to_string(),

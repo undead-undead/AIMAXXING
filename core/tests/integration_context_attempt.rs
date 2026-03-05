@@ -1,7 +1,7 @@
-use aimaxxing_core::agent::provider::{ChatRequest, Provider};
-use aimaxxing_core::agent::streaming::{MockStreamBuilder, StreamingResponse};
-use aimaxxing_core::agent::Agent;
-use aimaxxing_core::error::{Error, Result};
+use brain::agent::provider::{ChatRequest, Provider};
+use brain::agent::streaming::{MockStreamBuilder, StreamingResponse};
+use brain::agent::Agent;
+use brain::error::{Error, Result};
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 

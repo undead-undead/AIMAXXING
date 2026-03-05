@@ -1,6 +1,6 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::skills::SkillLoader;
-use aimaxxing_core::trading::risk::{RiskManager, RiskConfig, InMemoryRiskStore};
+use brain::prelude::*;
+use brain::skills::SkillLoader;
+use brain::trading::risk::{RiskManager, RiskConfig, InMemoryRiskStore};
 use std::sync::Arc;
 use std::path::Path;
 

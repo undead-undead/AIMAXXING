@@ -56,7 +56,7 @@ pub struct ChatRequest {
     pub enable_cache_control: bool,
 }
 
-/// Trait for LLM aimaxxing_providers
+/// Trait for LLM providers
 ///
 /// Implement this trait to add support for a new LLM provider.
 #[async_trait]

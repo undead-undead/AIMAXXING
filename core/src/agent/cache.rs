@@ -23,7 +23,7 @@ pub trait Cache: Send + Sync {
 /// A simple in-memory implementation of the Cache trait
 /// 
 /// Note: This is an exact-match cache for now. Truly 'semantic' caching 
-/// (vector-based) should be implemented using aimaxxing_engram.
+/// (vector-based) should be implemented using engram.
 pub struct InMemoryCache {
     store: DashMap<String, String>,
 }

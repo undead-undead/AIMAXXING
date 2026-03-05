@@ -1,5 +1,5 @@
-use aimaxxing_core::store::file::{FileStore, FileStoreConfig};
-use aimaxxing_core::rag::VectorStore; // Import trait
+use brain::store::file::{FileStore, FileStoreConfig};
+use brain::rag::VectorStore; // Import trait
 use std::sync::Arc;
 use tokio::time::Duration;
 use std::sync::atomic::AtomicBool; // Import Atomics

@@ -69,7 +69,7 @@ fn check_rag_mode() -> anyhow::Result<()> {
     // Engram uses provider APIs for embeddings, no local models needed
     // Check if the data directory and DB are accessible
     let current_dir = std::env::current_dir()?;
-    let db_path = current_dir.join("data").join("aimaxxing_engram.db");
+    let db_path = current_dir.join("data").join("engram.db");
     if db_path.exists() {
         Ok(())
     } else {

@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn test_store_and_retrieve_document() {
         let dir = tempfile::tempdir().unwrap();
-        let store = EngramStore::new(dir.path().join("test.aimaxxing_engram")).unwrap();
+        let store = EngramStore::new(dir.path().join("test.engram")).unwrap();
 
         let doc = store
             .store_document(
@@ -402,7 +402,7 @@ mod tests {
     #[test]
     fn test_search_fts() {
         let dir = tempfile::tempdir().unwrap();
-        let store = EngramStore::new(dir.path().join("test.aimaxxing_engram")).unwrap();
+        let store = EngramStore::new(dir.path().join("test.engram")).unwrap();
 
         store
             .store_document(
@@ -431,7 +431,7 @@ mod tests {
     #[test]
     fn test_collections() {
         let dir = tempfile::tempdir().unwrap();
-        let store = EngramStore::new(dir.path().join("test.aimaxxing_engram")).unwrap();
+        let store = EngramStore::new(dir.path().join("test.engram")).unwrap();
 
         store
             .create_collection(Collection {

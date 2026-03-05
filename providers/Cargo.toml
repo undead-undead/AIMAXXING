@@ -1,5 +1,5 @@
 [package]
-name = "aimaxxing-providers"
+name = "providers"
 description = "LLM provider implementations for the AIMAXXING AI Agent framework"
 version.workspace = true
 edition.workspace = true
@@ -23,7 +23,7 @@ minimax = ["openai"]
 
 
 [dependencies]
-aimaxxing-core = { package = "aimaxxing-core", path = "../core" }
+brain = { path = "../core" }
 tokio = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }

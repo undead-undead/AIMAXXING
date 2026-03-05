@@ -5,9 +5,9 @@
 /// - Registering tools with an agent
 /// - Agent automatically calling tools based on user input
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::skills::tool::{Tool, ToolDefinition};
-use aimaxxing_providers::gemini::{Gemini, GEMINI_2_0_FLASH};
+use brain::prelude::*;
+use brain::skills::tool::{Tool, ToolDefinition};
+use providers::gemini::{Gemini, GEMINI_2_0_FLASH};
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::json;

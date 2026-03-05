@@ -7,9 +7,9 @@
 /// 
 /// The Pipeline engine manages the execution flow.
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::trading::strategy::{FileStrategyStore, PriceDirection, StrategyStore};
-use aimaxxing_core::trading::pipeline::{Pipeline, Step, Context};
+use brain::prelude::*;
+use brain::trading::strategy::{FileStrategyStore, PriceDirection, StrategyStore};
+use brain::trading::pipeline::{Pipeline, Step, Context};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Utc;

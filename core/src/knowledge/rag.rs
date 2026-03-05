@@ -43,7 +43,7 @@ pub trait VectorStore: Send + Sync {
     async fn delete(&self, id: &str) -> Result<()>;
 }
 
-/// Interface for embeddings aimaxxing_providers
+/// Interface for embeddings providers
 /// (Optional: Application might handle embeddings manually)
 #[async_trait]
 pub trait Embeddings: Send + Sync {

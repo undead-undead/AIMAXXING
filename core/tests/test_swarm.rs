@@ -1,8 +1,8 @@
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::swarm::manifest::{AgentManifest, AgentStatus};
-use aimaxxing_core::agent::swarm::discovery::{Discovery, LocalDiscovery};
-use aimaxxing_core::agent::multi_agent::AgentRole;
-use aimaxxing_core::agent::swarm::protocol::SwarmMessage;
+use brain::prelude::*;
+use brain::agent::swarm::manifest::{AgentManifest, AgentStatus};
+use brain::agent::swarm::discovery::{Discovery, LocalDiscovery};
+use brain::agent::multi_agent::AgentRole;
+use brain::agent::swarm::protocol::SwarmMessage;
 
 #[tokio::test]
 async fn test_swarm_discovery_and_protocol() {

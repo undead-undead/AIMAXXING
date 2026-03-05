@@ -6,9 +6,9 @@
 ///
 /// This approach reduces token usage by 95% and improves agent reasoning.
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::skills::tool::{Tool, ToolDefinition};
-use aimaxxing_core::error::{Error, Result};
+use brain::prelude::*;
+use brain::skills::tool::{Tool, ToolDefinition};
+use brain::error::{Error, Result};
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::json;
@@ -116,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
     let tool = BrowserTool { browser: browser };
 
     // 3. Create Agent (using Mock Provider for test without API key)
-    use aimaxxing_providers::mock::MockProvider;
+    use providers::mock::MockProvider;
     let provider = MockProvider::new("OK");
     
     let agent = Agent::builder(provider)

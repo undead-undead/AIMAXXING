@@ -3,7 +3,7 @@
 //! A CLI utility to check for exposed ports, weak configurations,
 //! and authentication status of an AIMAXXING Gateway.
 
-use aimaxxing_core::infra::aimaxxing_gateway::{protocol::ClientRole, GatewayConfig};
+use brain::infra::aimaxxing_gateway::{protocol::ClientRole, GatewayConfig};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 

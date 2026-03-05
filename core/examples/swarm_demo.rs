@@ -3,16 +3,16 @@ use tokio::sync::{broadcast, Mutex};
 use clap::{Parser, Subcommand};
 use tracing::{info, warn, error};
 use async_trait::async_trait;
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::agent::swarm::manifest::{AgentManifest, AgentStatus};
-use aimaxxing_core::agent::swarm::discovery::LocalDiscovery;
-use aimaxxing_core::agent::swarm::discovery::Discovery; // Trait
-use aimaxxing_core::agent::swarm::manager::{SwarmManager, SwarmEvent};
-use aimaxxing_core::agent::swarm::protocol::SwarmMessage;
-use aimaxxing_core::agent::multi_agent::AgentRole;
-use aimaxxing_core::agent::provider::{Provider, ChatRequest};
-use aimaxxing_core::agent::streaming::{StreamingResponse, StreamingChoice};
-use aimaxxing_core::error::Result;
+use brain::prelude::*;
+use brain::agent::swarm::manifest::{AgentManifest, AgentStatus};
+use brain::agent::swarm::discovery::LocalDiscovery;
+use brain::agent::swarm::discovery::Discovery; // Trait
+use brain::agent::swarm::manager::{SwarmManager, SwarmEvent};
+use brain::agent::swarm::protocol::SwarmMessage;
+use brain::agent::multi_agent::AgentRole;
+use brain::agent::provider::{Provider, ChatRequest};
+use brain::agent::streaming::{StreamingResponse, StreamingChoice};
+use brain::error::Result;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use std::collections::HashMap;
@@ -97,7 +97,7 @@ async fn start_transport(
 ) -> Result<()> {
     // 1. Start TCP Listener (Inbound)
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await
-        .map_err(|e| aimaxxing_core::error::Error::Internal(e.to_string()))?;
+        .map_err(|e| brain::error::Error::Internal(e.to_string()))?;
     
     let bus_clone = bus_tx.clone();
     tokio::spawn(async move {

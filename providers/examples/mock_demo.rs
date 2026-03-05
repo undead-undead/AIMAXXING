@@ -4,9 +4,9 @@
 /// without requiring an API key. This is useful for testing tool integrations
 /// and agent logic locally.
 
-use aimaxxing_core::prelude::*;
-use aimaxxing_core::skills::tool::{Tool, ToolDefinition};
-use aimaxxing_providers::mock::MockProvider;
+use brain::prelude::*;
+use brain::skills::tool::{Tool, ToolDefinition};
+use providers::mock::MockProvider;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::json;
