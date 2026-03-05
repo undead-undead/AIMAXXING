@@ -26,18 +26,18 @@ fn translate_en(key: &str) -> &str {
         // Tabs
         "tabs.skills" => "Skills",
         "tabs.vault" => "API",
-        "tabs.logs" => "Logs",
         "tabs.store" => "Store",
         "tabs.sessions" => "Sessions",
         "tabs.cron" => "Cron",
         "tabs.persona" => "Soul",
         "tabs.connection" => "Connection",
         "tabs.chat" => "Chat",
-        "tabs.dashboard" => "Dashboard",
+        "tabs.dashboard" => "Dash",
+        "tabs.logs" => "Logs",
         "tabs.system" => "System",
         "tabs.channels" => "Channels",
         "tabs.speech" => "Speech",
-        "tabs.keys" => "Credentials",
+        "tabs.keys" => "LLM Providers",
         "tabs.comm" => "Communication",
 
         "speech.openai_tts" => "OpenAI TTS",
@@ -51,6 +51,12 @@ fn translate_en(key: &str) -> &str {
         "skills.installed" => "Installed",
         "skills.market" => "Store",
         "skills.manual" => "Manual",
+
+        // Manual Install
+        "install.title" => "Manual Installation",
+        "install.hint" => "Visit skills.sh or clawhub.ai, find a skill, then copy the install command and paste it below.",
+        "install.subtitle" => "Install Skill",
+        "install.paste_hint" => "Paste the install command from skills.sh or clawhub.ai, or a GitHub URL:",
 
         // Common Buttons
         "btn.refresh" => "Refresh",
@@ -110,20 +116,20 @@ fn translate_en(key: &str) -> &str {
 fn translate_zh(key: &str) -> &str {
     match key {
         // Tabs
-        "tabs.skills" => "技能",
+        "tabs.skills" => "Skills",
         "tabs.vault" => "API",
         "tabs.logs" => "日志",
         "tabs.store" => "商店",
         "tabs.sessions" => "会话",
-        "tabs.cron" => "定时任务",
+        "tabs.cron" => "任务",
         "tabs.persona" => "灵魂",
         "tabs.connection" => "连接",
-        "tabs.chat" => "即时聊天",
-        "tabs.dashboard" => "仪表盘",
+        "tabs.chat" => "聊天",
+        "tabs.dashboard" => "概览",
         "tabs.system" => "系统",
         "tabs.channels" => "通道",
         "tabs.speech" => "语音",
-        "tabs.keys" => "凭据",
+        "tabs.keys" => "LLM提供商",
         "tabs.comm" => "通信",
 
         "speech.openai_tts" => "OpenAI 语音合成",
@@ -137,6 +143,12 @@ fn translate_zh(key: &str) -> &str {
         "skills.installed" => "已安装",
         "skills.market" => "商店",
         "skills.manual" => "手动执行",
+
+        // Manual Install
+        "install.title" => "手动安装",
+        "install.hint" => "访问 skills.sh 或 clawhub.ai 找到技能后，复制安装命令粘贴到下方。",
+        "install.subtitle" => "安装技能",
+        "install.paste_hint" => "粘贴来自 skills.sh 或 clawhub.ai 的安装命令，或 GitHub URL：",
 
         // Common Buttons
         "btn.refresh" => "刷新",

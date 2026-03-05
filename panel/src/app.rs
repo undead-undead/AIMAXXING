@@ -102,14 +102,11 @@ impl ClawPanel {
         cc.egui_ctx.set_visuals(visuals);
 
         let mut style = (*cc.egui_ctx.style()).clone();
-        style.text_styles.insert(
-            egui::TextStyle::Body,
-            FontId::new(14.0, egui::FontFamily::Proportional),
-        );
-        style.text_styles.insert(
-            egui::TextStyle::Button,
-            FontId::new(13.0, egui::FontFamily::Proportional),
-        );
+        style.text_styles.insert(egui::TextStyle::Heading, FontId::new(28.0, egui::FontFamily::Proportional));
+        style.text_styles.insert(egui::TextStyle::Body, FontId::new(19.0, egui::FontFamily::Proportional));
+        style.text_styles.insert(egui::TextStyle::Button, FontId::new(16.0, egui::FontFamily::Proportional));
+        style.text_styles.insert(egui::TextStyle::Small, FontId::new(14.0, egui::FontFamily::Proportional));
+        style.text_styles.insert(egui::TextStyle::Monospace, FontId::new(15.0, egui::FontFamily::Monospace));
         cc.egui_ctx.set_style(style);
 
         // Sub-phase 4: Font setup (P11)
@@ -247,6 +244,46 @@ fn spawn_task(future: impl std::future::Future<Output = ()> + 'static) {
 
 impl eframe::App for ClawPanel {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // ── 1. Startup Snap: 50% of Screen Resolution ──────────────────
+        // This runs only once per session to set the fixed size and ensure windowed mode.
+        if !self.state.initial_resize_done {
+            if let Some(monitor_size) = ctx.input(|i| i.viewport().monitor_size) {
+                if monitor_size.x > 100.0 && monitor_size.y > 100.0 {
+                    // Force windowed mode first
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(false));
+                    
+                    let new_size = egui::vec2(monitor_size.x * 0.5, monitor_size.y * 0.5);
+                    
+                    // Triple-lock the size to force X11/Win/Mac to comply
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(new_size));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(new_size));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::MaxInnerSize(new_size));
+                    
+                    self.state.initial_resize_done = true;
+                    ctx.request_repaint();
+                }
+            } else {
+                // Fallback for environments where monitor_size is None
+                let fallback = egui::vec2(1280.0, 720.0);
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(fallback));
+                ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(fallback));
+                ctx.send_viewport_cmd(egui::ViewportCommand::MaxInnerSize(fallback));
+                self.state.initial_resize_done = true;
+            }
+        }
+
+        // ── 2. Initialize UI Styles ─────────────────────────────────────
+        if self.state.last_ui_scale == 0.0 {
+            self.state.last_ui_scale = 1.0;
+            let mut style = (*ctx.style()).clone();
+            style.text_styles.insert(egui::TextStyle::Heading, FontId::new(28.0, egui::FontFamily::Proportional));
+            style.text_styles.insert(egui::TextStyle::Body, FontId::new(19.0, egui::FontFamily::Proportional));
+            style.text_styles.insert(egui::TextStyle::Button, FontId::new(16.0, egui::FontFamily::Proportional));
+            style.text_styles.insert(egui::TextStyle::Small, FontId::new(14.0, egui::FontFamily::Proportional));
+            style.text_styles.insert(egui::TextStyle::Monospace, FontId::new(15.0, egui::FontFamily::Monospace));
+            ctx.set_style(style);
+        }
+
         // Theme persistence and real-time syncing
         let is_dark_in_ctx = ctx.style().visuals.dark_mode;
         if self.state.night_mode != is_dark_in_ctx {
@@ -292,7 +329,7 @@ impl eframe::App for ClawPanel {
                     ui.label(
                         RichText::new("◈ AIMAXXING")
                             .color(palette::ACCENT)
-                            .font(FontId::new(16.0, egui::FontFamily::Monospace))
+                            .font(FontId::new(18.0, egui::FontFamily::Monospace))
                             .strong(),
                     );
                     ui.separator();
@@ -385,9 +422,9 @@ impl eframe::App for ClawPanel {
                 ];
                 let n_tabs = tabs.len() as f32;
                 let btn_width = avail_width / n_tabs;
-                let btn_height = 40.0;
-                // Adaptive font size: scales between 11.0 and 16.0 based on window width
-                let font_size = (avail_width / 60.0).clamp(11.0, 16.0);
+                let btn_height = 46.0;
+                // Level 1: Top Navigation - Largest (24px)
+                let font_size = 24.0;
 
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
@@ -493,6 +530,7 @@ impl eframe::App for ClawPanel {
         self.poll_market_install_promise(ctx);
         self.poll_persona_export_promise(ctx);
         self.poll_provider_promise();
+        self.poll_log_promise();
 
 
         // ── 定时任务 ────────────────────────────────────────────────────────
@@ -863,16 +901,18 @@ impl ClawPanel {
         let _night = self.state.night_mode;
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
-                if ui.selectable_label(self.state.skills_subtab == SkillsSubTab::Installed, t("skills.installed", lang)).clicked() {
+                // Level 2: Sub-tabs (20px)
+                let subtab_font = FontId::new(20.0, egui::FontFamily::Proportional);
+                if ui.selectable_label(self.state.skills_subtab == SkillsSubTab::Installed, RichText::new(t("skills.installed", lang)).font(subtab_font.clone())).clicked() {
                     self.state.skills_subtab = SkillsSubTab::Installed;
                 }
-                if ui.selectable_label(self.state.skills_subtab == SkillsSubTab::Market, t("skills.market", lang)).clicked() {
+                if ui.selectable_label(self.state.skills_subtab == SkillsSubTab::Market, RichText::new(t("skills.market", lang)).font(subtab_font.clone())).clicked() {
                     self.state.skills_subtab = SkillsSubTab::Market;
                     if self.state.market_skills.is_empty() && !self.state.market_loading {
                         self.do_market_search("".to_string(), 1, ctx);
                     }
                 }
-                if ui.selectable_label(self.state.skills_subtab == SkillsSubTab::Manual, t("skills.manual", lang)).clicked() {
+                if ui.selectable_label(self.state.skills_subtab == SkillsSubTab::Manual, RichText::new(t("skills.manual", lang)).font(subtab_font)).clicked() {
                     self.state.skills_subtab = SkillsSubTab::Manual;
                 }
 
@@ -959,7 +999,7 @@ impl ClawPanel {
                                                 RichText::new(&skill.name)
                                                     .strong()
                                                     .color(palette::ACCENT)
-                                                    .font(FontId::new(13.0, egui::FontFamily::Monospace)),
+                                                    .font(FontId::new(16.0, egui::FontFamily::Proportional)),
                                             ).frame(false),
                                         );
                                         if name_resp.clicked() {
@@ -967,8 +1007,13 @@ impl ClawPanel {
                                         }
 
                                         if let Some(rt) = &skill.runtime {
-                                            ui.add_space(6.0);
-                                            ui.label(RichText::new(format!("[{}]", rt)).small().color(palette::text_dim(self.state.night_mode)));
+                                            ui.add_space(8.0);
+                                            ui.label(
+                                                RichText::new(format!("runtime: {}", rt))
+                                                    .small()
+                                                    .color(palette::text_dim(self.state.night_mode))
+                                                    .italics()
+                                            );
                                         }
 
                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1033,20 +1078,33 @@ impl ClawPanel {
 
         ui.vertical(|ui| {
             // Search Bar
+            // Search Bar (Row Layout Fix)
             ui.horizontal(|ui| {
                 ui.label("Search:");
+                
+                // Use the full remaining width, but reserve space on the right for buttons
+                let buttons_w = 180.0; 
+                let input_w = (ui.available_width() - buttons_w - 20.0).max(100.0);
+                
                 let response = ui.add(
                     egui::TextEdit::singleline(&mut self.state.market_search_query)
-                        .hint_text("Search Smithery, GitHub, local...")
-                        .desired_width(ui.available_width() - 120.0)
+                        .hint_text("Search...")
+                        .desired_width(input_w)
                 );
-                
-                if (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter))) || ui.button("Search").clicked() {
+                if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     self.do_market_search(self.state.market_search_query.clone(), 1, ctx);
                 }
-                if ui.button("Refresh").clicked() {
-                    self.do_market_search(self.state.market_search_query.clone(), 1, ctx);
-                }
+
+                // Push buttons to the far right
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Refresh").clicked() {
+                        self.do_market_search(self.state.market_search_query.clone(), 1, ctx);
+                    }
+                    ui.add_space(8.0);
+                    if ui.button("Search").clicked() {
+                        self.do_market_search(self.state.market_search_query.clone(), 1, ctx);
+                    }
+                });
             });
             ui.add_space(12.0);
 
@@ -1070,7 +1128,7 @@ impl ClawPanel {
             } else if self.state.market_skills.is_empty() {
                 ui.label(RichText::new("No results found. Try another query.").color(palette::text_dim(self.state.night_mode)));
             } else {
-                let row_height = 80.0;
+                let row_height = 120.0; // Increased for extra clarity with large font
                 let market_skills_count = self.state.market_skills.len();
                 egui::ScrollArea::vertical().id_salt("market_skills_scroll").show_rows(ui, row_height, market_skills_count + 1, |ui, row_range| {
                     for i in row_range {
@@ -1088,48 +1146,69 @@ impl ClawPanel {
                                 .inner_margin(egui::Margin::same(10))
                                 .outer_margin(egui::Margin::symmetric(0, 3))
                                 .show(ui, |ui| {
-                                    let available_width = ui.available_width();
-                                    let right_width = 100.0;
-                                    let left_width = (available_width - right_width).max(100.0);
-
                                     ui.horizontal(|ui| {
-                                        ui.allocate_ui(egui::vec2(left_width, 0.0), |ui| {
-                                            ui.vertical(|ui| {
-                                                ui.horizontal(|ui| {
-                                                    ui.label(RichText::new(&skill_name).strong().color(palette::ACCENT));
-                                                    ui.label(RichText::new(format!("@{}", skill_author)).small().color(palette::text_dim(self.state.night_mode)));
-                                                    
-                                                    let (badge_color, badge_text) = match skill_source.as_str() {
-                                                        "smithery" => (palette::SUCCESS, "Smithery"),
-                                                        "github" => (palette::INFO, "GitHub"),
-                                                        _ => (palette::text_dim(self.state.night_mode), "Market"),
-                                                    };
-                                                    ui.label(RichText::new(badge_text).small().color(badge_color).strong());
-                                                    
-                                                    if let Some(stars) = skill_stars {
-                                                        ui.label(RichText::new(format!("★ {}", stars)).small().color(palette::WARNING));
+                                        let total_w = ui.available_width();
+                                        let right_w = 160.0; // Ample space for buttons
+                                        let spacing = ui.spacing().item_spacing.x;
+                                        let left_w = (total_w - right_w - spacing).max(100.0);
+
+                                        // 1. Left Content Section
+                                        ui.allocate_ui_with_layout(
+                                            egui::vec2(left_w, 0.0),
+                                            egui::Layout::top_down(egui::Align::Min),
+                                            |ui| {
+                                                ui.set_width(left_w);
+                                                ui.vertical(|ui| {
+                                                    ui.horizontal_wrapped(|ui| {
+                                                        // Level 3: Item Titles (18px)
+                                                        ui.label(RichText::new(&skill_name).strong().size(18.0).color(palette::ACCENT));
+                                                        
+                                                        // Level 4: Metadata (15px)
+                                                        ui.label(RichText::new(format!("@{}", skill_author)).size(15.0).color(palette::text_dim(self.state.night_mode)));
+                                                        
+                                                        let (badge_color, badge_text) = match skill_source.as_str() {
+                                                            "smithery" => (palette::SUCCESS, "Smithery"),
+                                                            "github" => (palette::INFO, "GitHub"),
+                                                            _ => (palette::text_dim(self.state.night_mode), "Market"),
+                                                        };
+                                                        ui.label(RichText::new(badge_text).size(14.0).color(badge_color).strong());
+                                                        
+                                                        if let Some(stars) = skill_stars {
+                                                            ui.label(RichText::new(format!("★ {}", stars)).size(14.0).color(palette::WARNING));
+                                                        }
+                                                    });
+
+                                                    if !skill_desc.is_empty() {
+                                                        ui.add_space(2.0);
+                                                        ui.add(egui::Label::new(
+                                                            RichText::new(&skill_desc).size(15.0).color(palette::text_dim(self.state.night_mode))
+                                                        ).wrap());
                                                     }
                                                 });
-
-                                                if !skill_desc.is_empty() {
-                                                    ui.add_space(2.0);
-                                                    ui.label(RichText::new(&skill_desc).small().color(palette::text_dim(self.state.night_mode)));
-                                                }
-                                            });
-                                        });
-
-                                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                            let is_installing = self.state.market_installing_url.as_deref() == Some(&skill_url);
-                                            if is_installing {
-                                                ui.spinner();
-                                                ui.label(RichText::new("Installing...").small().color(palette::ACCENT));
-                                            } else {
-                                                if ui.button("Install").clicked() {
-                                                    self.do_market_install(skill_url.clone(), ctx);
-                                                }
                                             }
-                                            ui.hyperlink_to(RichText::new("View").small(), &skill_url);
-                                        });
+                                        );
+
+                                        // 2. Right Actions Section
+                                        ui.allocate_ui_with_layout(
+                                            egui::vec2(right_w, 0.0),
+                                            egui::Layout::right_to_left(egui::Align::Center),
+                                            |ui| {
+                                                ui.set_width(right_w);
+                                                ui.add_space(4.0); // Padding from right edge
+                                                
+                                                let is_installing = self.state.market_installing_url.as_deref() == Some(&skill_url);
+                                                if is_installing {
+                                                    ui.spinner();
+                                                } else {
+                                                    if ui.button("Install").clicked() {
+                                                        self.do_market_install(skill_url.clone(), ctx);
+                                                    }
+                                                }
+                                                
+                                                ui.add_space(8.0);
+                                                ui.hyperlink_to(RichText::new("View").small(), &skill_url);
+                                            }
+                                        );
                                     });
                                 });
                         } else {
@@ -1289,20 +1368,21 @@ impl ClawPanel {
 
     fn show_api_tab(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.vertical(|ui| {
-            ui.add_space(8.0);
+            ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
                 let is_keys = self.state.api_subtab == ApiSubTab::Keys;
                 let is_voice = self.state.api_subtab == ApiSubTab::Voice;
                 let is_comm = self.state.api_subtab == ApiSubTab::Comm;
 
-                if ui.selectable_label(is_keys, t("tabs.keys", self.state.language)).clicked() {
+                let subtab_font = FontId::new(20.0, egui::FontFamily::Proportional);
+                if ui.selectable_label(is_keys, RichText::new(t("tabs.keys", self.state.language)).font(subtab_font.clone())).clicked() {
                     self.state.api_subtab = ApiSubTab::Keys;
                 }
-                if ui.selectable_label(is_voice, t("tabs.speech", self.state.language)).clicked() {
+                if ui.selectable_label(is_voice, RichText::new(t("tabs.speech", self.state.language)).font(subtab_font.clone())).clicked() {
                     self.state.api_subtab = ApiSubTab::Voice;
                 }
-                if ui.selectable_label(is_comm, t("tabs.comm", self.state.language)).clicked() {
+                if ui.selectable_label(is_comm, RichText::new(t("tabs.comm", self.state.language)).font(subtab_font)).clicked() {
                     self.state.api_subtab = ApiSubTab::Comm;
                 }
             });
@@ -1323,18 +1403,8 @@ impl ClawPanel {
     fn show_api_keys(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.vertical(|ui| {
             ui.set_width(ui.available_width()); // Force expansion at the tab root level
-            ui.label(
-                RichText::new("Credentials — API Keys")
-                    .font(FontId::new(18.0, egui::FontFamily::Monospace))
-                    .strong(),
-            );
-            ui.add_space(4.0);
-            ui.label(
-                RichText::new("Keys are injected as env vars — never passed as CLI args.")
-                    .small()
-                    .color(palette::text_dim(self.state.night_mode)),
-            );
-            ui.add_space(12.0);
+            ui.add_space(8.0);
+
 
             let n = self.state.vault_entries.len();
             let mut delete_idx: Option<usize> = None;
@@ -1512,10 +1582,8 @@ impl ClawPanel {
         let night = self.state.night_mode;
 
         ui.vertical(|ui| {
-            ui.heading(RichText::new(t("speech.title", lang)).strong().color(palette::text_bright(night)));
-            ui.add_space(4.0);
-            ui.label(RichText::new("Globally configure Voice synthesis (TTS) and recognition logic for the entire swarm.").small().color(palette::text_dim(night)));
-            ui.add_space(16.0);
+            ui.add_space(8.0);
+
 
             // ── Section: OpenAI TTS ──────────────────────────────────────────
             egui::Frame::new()
@@ -1631,13 +1699,14 @@ impl ClawPanel {
         let now = ctx.input(|i| i.time);
         let next_poll_in = (2.0 - (now - self.state.last_log_poll_time)).max(0.0);
 
+        // Keep repainting every second so the countdown timer updates without mouse input
+        if self.state.auto_log_poll {
+            ctx.request_repaint_after(std::time::Duration::from_secs(1));
+        }
+
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new("Audit Logs")
-                        .font(FontId::new(18.0, egui::FontFamily::Monospace))
-                        .strong(),
-                );
+
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // Manual trigger
                     if ui.button("▶ Poll Now").clicked() {
@@ -1770,36 +1839,33 @@ impl ClawPanel {
             // ── Header ──────────────────────────────────────────────────────
             ui.horizontal(|ui| {
                 ui.label(
-                    RichText::new("Manual Installation")
+                    RichText::new(t("install.title", self.state.language))
                         .font(FontId::new(16.0, egui::FontFamily::Monospace))
                         .color(palette::text_bright(self.state.night_mode))
                         .strong(),
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .add(
-                            egui::Button::new(
-                                RichText::new("🌐 Browse skills.sh →")
-                                    .small()
-                                    .color(palette::ACCENT),
-                            )
-                            .fill(Color32::TRANSPARENT)
-                            .stroke(Stroke::new(1.0, palette::ACCENT)),
-                        )
-                        .on_hover_text("Open skills.sh in your browser to discover skills")
-                        .clicked()
-                    {
-                        ctx.open_url(egui::OpenUrl {
-                            url: "https://skills.sh".to_string(),
-                            new_tab: true,
-                        });
-                    }
+                    // Use standard hyperlink_to which handles focus handoff more robustly in some WMs
+                    let style = ui.style_mut();
+                    style.visuals.hyperlink_color = palette::ACCENT;
+                    
+                    ui.hyperlink_to(
+                        RichText::new("🌐 skills.sh →").small(),
+                        "https://skills.sh"
+                    );
+                    
+                    ui.add_space(12.0);
+                    
+                    ui.hyperlink_to(
+                        RichText::new("🌐 clawhub.ai →").small(),
+                        "https://clawhub.ai"
+                    );
                 });
             });
             ui.add_space(4.0);
             ui.label(
                 RichText::new(
-                    "Visit skills.sh, find a skill, then copy the full install command shown on the page and paste it below.",
+                    t("install.hint", self.state.language),
                 )
                 .small()
                 .color(palette::text_dim(self.state.night_mode)),
@@ -1814,13 +1880,13 @@ impl ClawPanel {
                 .inner_margin(egui::Margin::same(14))
                 .show(ui, |ui| {
                     ui.label(
-                        RichText::new("Install Skill")
+                        RichText::new(t("install.subtitle", self.state.language))
                             .strong()
                             .color(palette::ACCENT),
                     );
                     ui.add_space(4.0);
                     ui.label(
-                        RichText::new("Paste the install command from skills.sh, or a GitHub / skills.sh URL:")
+                        RichText::new(t("install.paste_hint", self.state.language))
                             .small()
                             .color(palette::text_dim(self.state.night_mode)),
                     );
@@ -1868,28 +1934,7 @@ impl ClawPanel {
                             ui.spinner();
                         }
 
-                        // Quick-copy examples
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            for (label, url) in &[
-                                ("find-skills", "https://github.com/aimaxxing-labs/skills/tree/main/skills/find-skills"),
-                                ("rust-daily", "https://github.com/biubiuboy/.agent/tree/main/skills/rust-daily"),
-                            ] {
-                                if ui
-                                    .add(
-                                        egui::Button::new(
-                                            RichText::new(format!("▸ {}", label))
-                                                .small()
-                                                .color(palette::text_dim(self.state.night_mode)),
-                                        )
-                                        .fill(Color32::TRANSPARENT),
-                                    )
-                                    .on_hover_text(format!("Use: {}", url))
-                                    .clicked()
-                                {
-                                    self.state.store_install_url = url.to_string();
-                                }
-                            }
-                        });
+                        // (quick-copy examples removed)
                     });
 
                     ui.add_space(4.0);
@@ -1958,12 +2003,7 @@ impl ClawPanel {
 
     fn show_connection_tab(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.vertical(|ui| {
-            ui.label(
-                RichText::new("Connection Settings")
-                    .font(FontId::new(18.0, egui::FontFamily::Monospace))
-                    .strong(),
-            );
-            ui.add_space(16.0);
+
 
             egui::Frame::new()
                 .fill(self.theme_bg_deep())
@@ -2079,11 +2119,7 @@ impl ClawPanel {
     fn show_sessions_tab(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new("Active Sessions")
-                        .font(FontId::new(18.0, egui::FontFamily::Monospace))
-                        .strong(),
-                );
+
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("↻ Refresh").clicked() {
                         self.state.last_sessions_refresh_time = -999.0;
@@ -2182,11 +2218,7 @@ impl ClawPanel {
         ui.vertical(|ui| {
             // Header
             ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new("Cron Scheduler")
-                        .font(FontId::new(18.0, egui::FontFamily::Monospace))
-                        .strong(),
-                );
+
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("↻ Refresh").clicked() {
                         self.state.last_cron_refresh_time = -999.0;
@@ -2608,11 +2640,11 @@ impl ClawPanel {
                 self.state.provider_loading = false;
                 match result {
                     Ok(resp) => {
-                        self.state.provider_metadata = resp.providers.clone();
+                        self.state.provider_metadata = resp.aimaxxing_providers.clone();
                         self.state.provider_error = None;
                         
                         // Auto-populate vault entries with fields from metadata
-                        for provider in &resp.providers {
+                        for provider in &resp.aimaxxing_providers {
                             for field in &provider.fields {
                                 if !self.state.vault_entries.iter().any(|e| e.key == field.key) {
                                     self.state.vault_entries.push(VaultEntry {
@@ -2783,11 +2815,14 @@ impl ClawPanel {
     }
     fn show_persona_tab(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.vertical(|ui| {
+            // Header (Level 1 - 24px)
+
             ui.horizontal(|ui| {
-                if ui.selectable_label(self.state.persona_subtab == PersonaSubTab::Editor, t("tabs.persona", self.state.language)).clicked() {
+                let subtab_font = FontId::new(20.0, egui::FontFamily::Proportional);
+                if ui.selectable_label(self.state.persona_subtab == PersonaSubTab::Editor, RichText::new(t("tabs.persona", self.state.language)).font(subtab_font.clone())).clicked() {
                     self.state.persona_subtab = PersonaSubTab::Editor;
                 }
-                if ui.selectable_label(self.state.persona_subtab == PersonaSubTab::Gallery, t("blueprint.gallery", self.state.language)).clicked() {
+                if ui.selectable_label(self.state.persona_subtab == PersonaSubTab::Gallery, RichText::new(t("blueprint.gallery", self.state.language)).font(subtab_font)).clicked() {
                     self.state.persona_subtab = PersonaSubTab::Gallery;
                 }
             });
@@ -3065,18 +3100,18 @@ impl ClawPanel {
             ui.add_space(8.0);
             
             // Dynamic provider metadata from backend
-            let providers = self.state.provider_metadata.clone();
+            let aimaxxing_providers = self.state.provider_metadata.clone();
             
             // Current provider metadata (if exists)
-            let selected_p_meta = providers.iter().find(|p| p.id == self.state.persona_role_provider.to_lowercase());
+            let selected_p_meta = aimaxxing_providers.iter().find(|p| p.id == self.state.persona_role_provider.to_lowercase());
 
             egui::ComboBox::from_id_salt("soul_provider_v4_dynamic")
                 .selected_text(selected_p_meta.map(|p| p.name.clone()).unwrap_or(self.state.persona_role_provider.clone()))
                 .show_ui(ui, |ui| {
-                    if providers.is_empty() {
-                        ui.label(RichText::new("Loading providers...").weak().small());
+                    if aimaxxing_providers.is_empty() {
+                        ui.label(RichText::new("Loading aimaxxing_providers...").weak().small());
                     }
-                    for p in &providers {
+                    for p in &aimaxxing_providers {
                         if ui.selectable_value(&mut self.state.persona_role_provider, p.id.clone(), &p.name).clicked() {
                             changed = true;
                             // Set first preferred model as default if current model is empty/placeholder
@@ -3414,8 +3449,7 @@ impl ClawPanel {
 
     fn show_chat_tab(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.vertical(|ui| {
-            ui.heading(RichText::new("Chat with Agents").color(palette::text_bright(self.state.night_mode)));
-            ui.add_space(8.0);
+
 
             // Agent Selection
             ui.horizontal(|ui| {
@@ -3977,10 +4011,8 @@ impl ClawPanel {
 
     fn show_channels_tab(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.vertical(|ui| {
-            ui.heading(RichText::new("External Channels & Connectors").color(palette::text_bright(self.state.night_mode)));
             ui.add_space(8.0);
-            ui.label(RichText::new("Configure connections to external messaging platforms (Telegram, Discord, iMessage).").color(palette::text_dim(self.state.night_mode)).small());
-            ui.add_space(16.0);
+
 
             if self.state.channel_metadata.is_empty() {
                 self.do_channel_refresh(ctx);
@@ -4117,7 +4149,7 @@ impl ClawPanel {
         let lang = self.state.language;
         let night = self.state.night_mode;
         ui.vertical(|ui| {
-            ui.heading(RichText::new(t("dashboard.token_usage_title", lang)).strong().color(palette::text_bright(night)));
+            ui.label(RichText::new(t("dashboard.token_usage_title", lang)).font(FontId::new(24.0, egui::FontFamily::Proportional)).strong().color(palette::text_bright(night)));
             ui.add_space(12.0);
 
             if let Some(metrics) = &self.state.last_metrics {
@@ -4501,7 +4533,7 @@ impl ClawPanel {
             "Knowledge Curator" => {
                 "---\nprovider: openai\nmodel: gpt-4o\ntemperature: 0.2\n---\n\n\
                 ## Role\n\
-                Knowledge Curator. Responsible for knowledge capture, structural organization, associative linking, and retrieval—your second brain.\n\n\
+                Knowledge Curator. Responsible for knowledge capture, structural organization, associative linking, and retrieval—your second aimaxxing_core.\n\n\
                 ## Soul\n\
                 You are an AI knowledge architect, blending Zettelkasten with the \"Building a Second Brain\" philosophy. You believe undocumented knowledge is lost knowledge, and true value lies in connections. You are a librarian, archivist, and connector.\n\n\
                 ## Core Tenets\n\
