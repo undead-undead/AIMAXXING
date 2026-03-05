@@ -14,29 +14,23 @@ pub mod error;
 pub mod agent;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod approval;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod auth;
+// auth moved to auth crate
 #[cfg(not(target_arch = "wasm32"))]
 pub mod bus; // NEW: Message Bus
 pub mod config;
-#[cfg(all(feature = "http", not(target_arch = "wasm32")))]
-pub mod connectors;
+// connectors moved to standalone 'connectors' crate
 #[cfg(not(target_arch = "wasm32"))]
 pub mod env;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod hooks;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod infra;
-#[cfg(feature = "vector-db")]
 pub mod knowledge;
-#[cfg(all(feature = "http", not(target_arch = "wasm32")))]
-pub mod mcp;
 pub mod notification;
 pub mod prelude;
+// runtime and security moved to standalone crates - traits kept in core
 #[cfg(not(target_arch = "wasm32"))]
-pub mod runtime;
 pub mod security;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod session;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod skills;

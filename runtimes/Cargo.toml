@@ -1,0 +1,33 @@
+[package]
+name = "runtimes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+brain = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+security = { path = "../security" }
+which = "8.0.0"
+dirs = "6.0.0"
+
+# Optional runtime engines
+wasmtime = { version = "29.0.0", optional = true }
+wasmtime-wasi = { version = "29.0.0", optional = true }
+rquickjs = { version = "0.11.0", features = ["full-async", "loader", "futures", "macro"], optional = true }
+
+[features]
+default = ["wasm", "quickjs"]
+wasm = ["dep:wasmtime", "dep:wasmtime-wasi"]
+quickjs = ["dep:rquickjs"]
+
+[lints]
+workspace = true

@@ -5,7 +5,15 @@ members = [
     "providers", 
     "engram",
     "gateway", 
-    "panel"
+    "panel",
+    "connectors",
+    "security",
+    "runtimes",
+    "builtin-tools",
+    "auth",
+    "knowledge",
+    "mcp",
+    "infra"
 ]
 
 [workspace.package]
@@ -21,6 +29,14 @@ categories = ["science", "simulation", "asynchronous"]
 brain = { path = "core", version = "0.3.5" }
 providers = { path = "providers", version = "0.3.5" }
 engram = { path = "engram", version = "0.3.5" }
+connectors = { path = "connectors", version = "0.3.5" }
+security = { path = "security", version = "0.3.5" }
+runtimes = { path = "runtimes", version = "0.3.5" }
+builtin-tools = { path = "builtin-tools", version = "0.3.5" }
+auth = { path = "auth", version = "0.3.5" }
+knowledge = { path = "knowledge", version = "0.3.5" }
+mcp = { path = "mcp", version = "0.3.5" }
+infra = { path = "infra", version = "0.3.5" }
 
 
 # Async runtime
@@ -58,6 +74,9 @@ simd-json = "0.14"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["full", "parsing"] }
+regex = "1.12"
+aho-corasick = "1.1"
+once_cell = "1.21"
 
 # Serialization
 bincode = "1.3"

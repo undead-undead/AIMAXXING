@@ -176,7 +176,7 @@ impl VesselPackage {
     }
 
     /// Unpack into a role directory with security inspection
-    pub async fn unpack(&self, role_dir: &Path, inspector: Option<&crate::security::VesselInspector>) -> anyhow::Result<()> {
+    pub async fn unpack(&self, role_dir: &Path, inspector: Option<&dyn VesselInspector>) -> anyhow::Result<()> {
         tokio::fs::create_dir_all(role_dir).await?;
 
         if !self.soul.is_empty() {

@@ -1,9 +1,2 @@
 pub mod format;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod logging;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod maintenance;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod notifications;
 pub mod observable;
-pub mod prefix_cache;

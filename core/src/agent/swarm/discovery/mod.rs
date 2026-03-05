@@ -61,7 +61,7 @@ impl Discovery for LocalDiscovery {
     async fn find_by_capability(&self, capability: &str) -> Result<Vec<AgentManifest>> {
         let registry = self.registry.read();
         let matches = registry.values()
-            .filter(|m| m.capabilities.contains(capability))
+            .filter(|m| m.capabilities.iter().any(|c| c == capability))
             .cloned()
             .collect();
         Ok(matches)

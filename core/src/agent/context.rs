@@ -43,6 +43,13 @@ pub trait ContextInjector: Send + Sync {
     async fn inject(&self, history: &[Message]) -> Result<Vec<Message>>;
 }
 
+#[async_trait::async_trait]
+impl<T: ContextInjector + ?Sized> ContextInjector for std::sync::Arc<T> {
+    async fn inject(&self, history: &[Message]) -> Result<Vec<Message>> {
+        self.as_ref().inject(history).await
+    }
+}
+
 /// Manages the context window for an agent
 pub struct ContextManager {
     config: ContextConfig,

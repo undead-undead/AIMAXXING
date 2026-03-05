@@ -1,0 +1,25 @@
+[package]
+name = "security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+brain = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+regex = { workspace = true }
+aho-corasick = { workspace = true }
+once_cell = { workspace = true }
+tokio = { workspace = true }
+zip = { version = "0.6", features = ["deflate"] }
+async-trait = { workspace = true }
+dashmap = { workspace = true }
+
+[lints]
+workspace = true

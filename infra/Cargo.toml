@@ -1,0 +1,32 @@
+[package]
+name = "infra"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+brain = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+rust_decimal = { workspace = true }
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs", "timeout", "limit"] }
+uuid = { workspace = true }
+futures = { workspace = true }
+sysinfo = "0.34"
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-appender = { workspace = true }
+
+[lints]
+workspace = true

@@ -26,10 +26,10 @@ pub use crate::agent::streaming::{StreamingChoice, StreamingResponse};
 #[cfg(not(target_arch = "wasm32"))]
 pub use crate::skills::tool::{Tool, ToolDefinition};
 #[cfg(not(target_arch = "wasm32"))]
-pub use crate::skills::{DynamicSkill, SkillExecutionConfig, SkillLoader};
+pub use crate::skills::SkillExecutionConfig;
 
 // Infra
 #[cfg(not(target_arch = "wasm32"))]
-pub use crate::infra::maintenance::{MaintenanceConfig, MaintenanceManager};
+// Maintenance types moved to standalone infra crate
 #[cfg(not(target_arch = "wasm32"))]
 pub use crate::notification::{Notifier, NotifyChannel};

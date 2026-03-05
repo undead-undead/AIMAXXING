@@ -1,15 +1,14 @@
 //! RAG (Retrieval-Augmented Generation) Interfaces
 //!
 //! This module defines the standard interface for vector stores.
-//! Implementations (like Qdrant, Pinecone, Postgres) should be handled
-//! in the application layer (e.g. `listen-memory`), not here.
+//! Implementations are handled in standalone crates.
 
 use crate::error::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
 /// A document retrieved from the vector store
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Document {
     /// Unique identifier
     pub id: String,
@@ -24,8 +23,10 @@ pub struct Document {
     /// The virtual path/source
     pub path: Option<String>,
     /// Metadata associated with the document
+    #[serde(default)]
     pub metadata: HashMap<String, String>,
     /// Similarity score (0.0 to 1.0)
+    #[serde(default)]
     pub score: f32,
 }
 
@@ -33,7 +34,6 @@ pub struct Document {
 #[async_trait]
 pub trait VectorStore: Send + Sync {
     /// Store a text with metadata
-    /// Returns the ID of the stored document
     async fn store(&self, content: &str, metadata: HashMap<String, String>) -> Result<String>;
     
     /// Search for similar documents
@@ -44,7 +44,6 @@ pub trait VectorStore: Send + Sync {
 }
 
 /// Interface for embeddings providers
-/// (Optional: Application might handle embeddings manually)
 #[async_trait]
 pub trait Embeddings: Send + Sync {
     /// Generate embedding vector for text

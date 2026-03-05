@@ -9,70 +9,7 @@ use std::sync::Arc;
 
 use crate::error::Error;
 
-#[cfg(feature = "browser")]
-pub mod browser;
-#[cfg(feature = "http")]
-pub mod chart;
-#[cfg(feature = "http")]
-pub mod cipher;
-#[cfg(feature = "cron")]
-pub mod cron;
-#[cfg(feature = "http")]
-pub mod data_transform;
-pub mod delegation;
-pub mod filesystem;
-pub mod forge;
-#[cfg(feature = "http")]
-pub mod git_ops;
-pub mod handover;
-#[cfg(feature = "http")]
-pub mod mailer;
-#[cfg(feature = "vector-db")]
-pub mod memory;
-#[cfg(feature = "http")]
-pub mod notifier;
-pub mod refine;
-#[cfg(feature = "http")]
-pub mod text_extract;
-#[cfg(feature = "http")]
-pub mod voice;
-#[cfg(feature = "http")]
-pub mod web_fetch;
-#[cfg(feature = "http")]
-pub mod web_search;
-
-#[cfg(feature = "browser")]
-pub use browser::BrowserTool;
-#[cfg(feature = "cron")]
-pub use cron::CronTool;
-pub use delegation::DelegateTool;
-pub use filesystem::{EditFileTool, ListDirTool, ReadFileTool, WriteFileTool};
-pub use forge::ForgeSkill;
-pub use handover::HandoverTool;
-#[cfg(feature = "vector-db")]
-pub use memory::{FetchDocumentTool, RememberThisTool, SearchHistoryTool, TieredSearchTool};
-pub use refine::RefineSkill;
-#[cfg(feature = "http")]
-pub use web_fetch::WebFetchTool;
-#[cfg(feature = "http")]
-pub use web_search::WebSearchTool;
-
-#[cfg(feature = "http")]
-pub use git_ops::GitOpsTool;
-#[cfg(feature = "http")]
-pub use chart::ChartTool;
-#[cfg(feature = "http")]
-pub use mailer::MailerTool;
-#[cfg(feature = "http")]
-pub use data_transform::DataTransformTool;
-#[cfg(feature = "http")]
-pub use notifier::NotifierTool;
-#[cfg(feature = "http")]
-pub use cipher::CipherTool;
-#[cfg(feature = "http")]
-pub use text_extract::TextExtractTool;
-#[cfg(feature = "http")]
-pub use voice::{TranscribeTool, SpeakTool};
+// Tool implementations moved to 'builtin-tools' crate.
 
 /// Definition of a tool that can be sent to the LLM
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -228,6 +165,52 @@ impl ToolSet {
             .collect()
     }
 }
+
+/// Tool for managing scheduled tasks
+#[cfg(feature = "cron")]
+pub struct CronTool {
+    scheduler: Weak<crate::agent::scheduler::Scheduler>,
+}
+
+#[cfg(feature = "cron")]
+impl CronTool {
+    pub fn new(scheduler: Weak<crate::agent::scheduler::Scheduler>) -> Self {
+        Self { scheduler }
+    }
+}
+
+#[cfg(feature = "cron")]
+#[async_trait]
+impl Tool for CronTool {
+    fn name(&self) -> String {
+        "cron".to_string()
+    }
+
+    async fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: "cron".to_string(),
+            description: "Manage scheduled tasks.".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "action": { "type": "string" }
+                },
+                "required": ["action"]
+            }),
+            parameters_ts: None,
+            is_binary: false,
+            is_verified: true,
+            usage_guidelines: None,
+        }
+    }
+
+    async fn call(&self, arguments: &str) -> anyhow::Result<String> {
+        let _ = arguments;
+        Ok("Cron tool called (implementation in builtin-tools)".to_string())
+    }
+}
+
+use std::sync::Weak;
 
 #[async_trait::async_trait]
 impl crate::agent::context::ContextInjector for ToolSet {

@@ -2,12 +2,11 @@
 
 use anyhow;
 use std::sync::Arc;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Mutex};
 use tracing::{debug, error, info, instrument};
 
 use crate::agent::cache::Cache;
-use crate::agent::context::ContextInjector;
-use crate::agent::context::{ContextConfig, ContextManager}; // ContextInjector is already imported above
+use crate::agent::context::{ContextConfig, ContextManager, ContextInjector};
 use crate::agent::memory::Memory;
 use crate::agent::TwoTierKvCache;
 use crate::agent::message::{Content, Message, Role};
@@ -23,18 +22,13 @@ use crate::agent::swarm::p2p::wormhole::{VesselExchange, WormholeConfig};
 use crate::error::{Error, Result};
 use crate::notification::{Notifier, NotifyChannel};
 use crate::infra::observable::MetricsRegistry;
-#[cfg(feature = "vector-db")]
-use crate::skills::tool::memory::{
-    FetchDocumentTool, RememberThisTool, SearchHistoryTool, TieredSearchTool,
-}; // Corrected import for memory tools
+use crate::skills::tool::{Tool, ToolSet};
 #[cfg(feature = "cron")]
 use crate::skills::tool::CronTool;
-use crate::skills::tool::{DelegateTool, HandoverTool};
-use crate::skills::tool::{Tool, ToolSet};
-
-use crate::security::SecurityManager;
+use crate::security::SecurityHandler;
 use crate::agent::evolution::evolution_manager::EvolutionManager;
 use crate::agent::evolution::consolidation::SleepConsolidator;
+use crate::agent::swarm::manager::SwarmEvent;
 
 /// Configuration for an Agent
 #[derive(Debug, Clone)]
@@ -329,7 +323,7 @@ pub struct Agent<P: Provider> {
 
     pub enabled_tools: Option<Arc<parking_lot::RwLock<std::collections::HashSet<String>>>>,
     pub persona: Arc<parking_lot::RwLock<Option<Persona>>>,
-    pub security: Arc<SecurityManager>,
+    pub security: Arc<dyn SecurityHandler>,
     /// Phase 11-B: External cancellation token for triple-cut abort
     pub cancel_token: tokio_util::sync::CancellationToken,
     /// Phase 10: Track tools seen in this session for lazy guide injection
@@ -340,6 +334,8 @@ pub struct Agent<P: Provider> {
     pub sleep_consolidator: Option<Arc<SleepConsolidator>>,
     /// Phase 2: KV Cache for inference acceleration
     pub kv_cache: Option<Arc<parking_lot::RwLock<TwoTierKvCache>>>,
+    pub swarm_manager: Option<Arc<Mutex<crate::agent::swarm::manager::SwarmManager>>>,
+    pub swarm_command_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<crate::agent::swarm::manager::SwarmEvent>>>>,
 }
 
 impl<P: Provider> Agent<P> {
@@ -1396,17 +1392,17 @@ pub struct AgentBuilder<P: Provider> {
     notifier: Option<Arc<dyn Notifier>>,
     cache: Option<Arc<dyn Cache>>,
 
-    /// Security: Track if DynamicSkill is enabled (mutually exclusive with Sidecar)
-    has_dynamic_skill: bool,
     memory: Option<Arc<dyn Memory>>,
     session_id: Option<String>,
     metrics: Option<Arc<MetricsRegistry>>,
 
     enabled_tools: Option<Arc<parking_lot::RwLock<std::collections::HashSet<String>>>>,
     persona: Arc<parking_lot::RwLock<Option<Persona>>>,
-    security: Option<Arc<SecurityManager>>,
+    security: Option<Arc<dyn SecurityHandler>>,
     evolution_manager: Option<Arc<EvolutionManager>>,
     kv_cache: Option<Arc<parking_lot::RwLock<TwoTierKvCache>>>,
+    swarm_manager: Option<Arc<Mutex<crate::agent::swarm::manager::SwarmManager>>>,
+    swarm_command_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<crate::agent::swarm::manager::SwarmEvent>>>>,
 }
 
 impl<P: Provider> AgentBuilder<P> {
@@ -1422,7 +1418,6 @@ impl<P: Provider> AgentBuilder<P> {
             notifier: None,
             cache: None,
 
-            has_dynamic_skill: false,
             memory: None,
             session_id: None,
             metrics: None,
@@ -1432,6 +1427,8 @@ impl<P: Provider> AgentBuilder<P> {
             security: None,
             evolution_manager: None,
             kv_cache: None,
+            swarm_manager: None,
+            swarm_command_rx: None,
         }
     }
 
@@ -1589,89 +1586,24 @@ impl<P: Provider> AgentBuilder<P> {
         self
     }
 
-    /// Add memory tools using the provided memory implementation
-    pub fn with_memory(self, memory: Arc<dyn crate::agent::memory::Memory>) -> Self {
-        #[cfg(feature = "vector-db")]
-        {
-            self.tools.add(SearchHistoryTool::new(memory.clone()));
-            self.tools.add(RememberThisTool::new(memory.clone()));
-            self.tools.add(TieredSearchTool::new(memory.clone()));
-            self.tools.add(FetchDocumentTool::new(memory.clone()));
-        }
-
-        let mut builder = self;
-        builder.memory = Some(memory);
-        builder
+    /// Set the memory implementation for the agent
+    pub fn with_memory(mut self, memory: Arc<dyn crate::agent::memory::Memory>) -> Self {
+        self.memory = Some(memory);
+        self
     }
 
-    /// Add DynamicSkill support (ClawHub skills, custom scripts)
-    ///
-    /// # Security
-    ///
-    /// **CRITICAL**: DynamicSkill and Python Sidecar are mutually exclusive.
-    /// This method will return an error if Python Sidecar has already been configured.
-    ///
-    /// **Rationale**: If both are enabled, malicious DynamicSkills can pollute the
-    /// Agent's context with secrets, which may then be used by LLM-generated Python
-    /// code in the unsandboxed Sidecar to exfiltrate data.
-    ///
-    /// See SECURITY.md for details.
-    pub fn with_dynamic_skills(
+    /// Set swarm coordination
+    pub fn with_swarm(
         mut self,
-        skill_loader: Arc<crate::skills::SkillLoader>,
-    ) -> Result<Self> {
-        // Security check: prevent enabling both Sidecar and DynamicSkill
-
-        // Add all loaded skills as tools
-        for skill_ref in skill_loader.skills.iter() {
-            self.tools
-                .add_shared(Arc::clone(skill_ref.value()) as Arc<dyn crate::skills::tool::Tool>);
-        }
-
-        // Add ClawHub, ReadSkillDoc and ForgeSkill tools
-        #[cfg(feature = "http")]
-        self.tools
-            .add(crate::skills::ClawHubTool::new(Arc::clone(&skill_loader)));
-
-        self.tools
-            .add(crate::skills::ReadSkillDoc::new(Arc::clone(&skill_loader)));
-
-        #[cfg(feature = "http")]
-        let github_compiler = if let (Ok(token), Ok(repo)) =
-            (std::env::var("GITHUB_TOKEN"), std::env::var("GITHUB_REPO"))
-        {
-            Some(crate::skills::compiler::GithubCompiler::new(
-                repo,
-                token,
-                self.notifier.clone(),
-            ))
-        } else {
-            None
-        };
-
-        #[cfg(not(feature = "http"))]
-        let github_compiler: Option<()> = None;
-
-        #[cfg(feature = "http")]
-        self.tools.add(crate::skills::tool::ForgeSkill::new(
-            Arc::clone(&skill_loader),
-            self.tools.clone(),
-            skill_loader.base_path.clone(),
-            github_compiler,
-        ));
-
-        #[cfg(not(feature = "http"))]
-        self.tools.add(crate::skills::tool::ForgeSkill::new(
-            Arc::clone(&skill_loader),
-            self.tools.clone(),
-            skill_loader.base_path.clone(),
-            None,
-        ));
-
-        self.has_dynamic_skill = true;
-
-        Ok(self)
+        manager: Arc<Mutex<crate::agent::swarm::manager::SwarmManager>>,
+        command_rx: tokio::sync::mpsc::Receiver<crate::agent::swarm::manager::SwarmEvent>,
+    ) -> Self {
+        self.swarm_manager = Some(manager);
+        self.swarm_command_rx = Some(Arc::new(Mutex::new(command_rx)));
+        self
     }
+
+    // Dynamic skills and specific tool loaders moved to 'builtin-tools' or 'gateway'.
 
     /// Build the agent
     ///
@@ -1694,73 +1626,7 @@ impl<P: Provider> AgentBuilder<P> {
             ));
         }
 
-        // SECURITY DEFAULT: Auto-enable DynamicSkill if no execution model configured
-        if !self.has_dynamic_skill {
-            info!("No execution model configured. Auto-enabling DynamicSkill (default)...");
-
-            // Try to load skills from default directory
-            let skill_loader = Arc::new(crate::skills::SkillLoader::new("./skills"));
-
-            // Attempt to load skills (non-fatal if directory doesn't exist)
-            // Capture handle before entering blocking context
-            let handle = tokio::runtime::Handle::current();
-            match tokio::task::block_in_place(|| handle.block_on(skill_loader.load_all())) {
-                Ok(_) => {
-                    info!("Loaded DynamicSkills from ./skills");
-
-                    // Add all loaded skills as tools
-                    for skill_ref in skill_loader.skills.iter() {
-                        self.tools.add_shared(
-                            Arc::clone(skill_ref.value()) as Arc<dyn crate::skills::tool::Tool>
-                        );
-                    }
-
-                    // Add ClawHub, ReadSkillDoc and ForgeSkill tools
-                    #[cfg(feature = "http")]
-                    self.tools
-                        .add(crate::skills::ClawHubTool::new(Arc::clone(&skill_loader)));
-
-                    self.tools
-                        .add(crate::skills::ReadSkillDoc::new(Arc::clone(&skill_loader)));
-
-                    #[cfg(feature = "http")]
-                    let github_compiler = if let (Ok(token), Ok(repo)) =
-                        (std::env::var("GITHUB_TOKEN"), std::env::var("GITHUB_REPO"))
-                    {
-                        Some(crate::skills::compiler::GithubCompiler::new(
-                            repo,
-                            token,
-                            self.notifier.clone(),
-                        ))
-                    } else {
-                        None
-                    };
-
-                    #[cfg(not(feature = "http"))]
-                    let github_compiler: Option<()> = None;
-
-                    self.tools.add(crate::skills::tool::ForgeSkill::new(
-                        Arc::clone(&skill_loader),
-                        self.tools.clone(),
-                        skill_loader.base_path.clone(),
-                        github_compiler,
-                    ));
-
-                    // Add RefineSkill for self-improvement
-                    self.tools
-                        .add(crate::skills::tool::RefineSkill::new(Arc::clone(
-                            &skill_loader,
-                        )));
-
-                    self.has_dynamic_skill = true;
-                }
-                Err(e) => {
-                    // Non-fatal: Skills directory doesn't exist or is empty
-                    info!("DynamicSkill auto-enable skipped (no skills found): {}", e);
-                    // Continue without skills - agent will still function with other tools
-                }
-            }
-        }
+        // Security Defaults and Tool auto-loading moved to caller or middleware crates.
 
         let (tx, _) = broadcast::channel(1000);
 
@@ -1834,6 +1700,17 @@ impl<P: Provider> AgentBuilder<P> {
             approval_handler: self
                 .approval_handler
                 .unwrap_or_else(|| Arc::new(RejectAllApprovalHandler)),
+            kv_cache: self.kv_cache.or_else(|| {
+                if self.config.kv_cache_pages > 0 {
+                    let mut kv_config = crate::agent::kv_cache::KvCacheConfig::default();
+                    kv_config.num_pages = self.config.kv_cache_pages;
+                    Some(Arc::new(parking_lot::RwLock::new(TwoTierKvCache::new(kv_config))))
+                } else {
+                    None
+                }
+            }),
+            swarm_manager: self.swarm_manager,
+            swarm_command_rx: self.swarm_command_rx,
             cache: self.cache,
             notifier: self.notifier,
             memory: self.memory,
@@ -1844,20 +1721,11 @@ impl<P: Provider> AgentBuilder<P> {
             persona: self.persona,
             security: self
                 .security
-                .unwrap_or_else(|| Arc::new(SecurityManager::default())),
+                .expect("SecurityHandler must be provided"),
             cancel_token: tokio_util::sync::CancellationToken::new(),
             seen_tools: Arc::new(parking_lot::RwLock::new(std::collections::HashSet::new())),
             evolution_manager: self.evolution_manager,
             sleep_consolidator,
-            kv_cache: self.kv_cache.or_else(|| {
-                if self.config.kv_cache_pages > 0 {
-                    let mut kv_config = crate::agent::kv_cache::KvCacheConfig::default();
-                    kv_config.num_pages = self.config.kv_cache_pages;
-                    Some(Arc::new(parking_lot::RwLock::new(TwoTierKvCache::new(kv_config))))
-                } else {
-                    None
-                }
-            }),
         };
 
         // Inject SOP into system prompt if exists
@@ -1892,21 +1760,7 @@ impl<P: Provider> AgentBuilder<P> {
         Ok(agent)
     }
 
-    /// Add delegation support using the provided coordinator
-    pub fn with_delegation(mut self, coordinator: Arc<Coordinator>) -> Self {
-        self.tools
-            .add(DelegateTool::new(Arc::downgrade(&coordinator)));
-        self.injectors
-            .push(Box::new(SwarmInjector::new(Arc::downgrade(&coordinator))));
-        self
-    }
-
-    /// Add handover support using the provided coordinator
-    pub fn with_handover(self, coordinator: Arc<Coordinator>) -> Self {
-        self.tools
-            .add(HandoverTool::new(Arc::downgrade(&coordinator)));
-        self
-    }
+    // Delegation and Handover support moved to 'builtin-tools' or 'gateway'.
 
     /// Add scheduling support using the provided scheduler
     #[cfg(feature = "cron")]
@@ -1918,7 +1772,7 @@ impl<P: Provider> AgentBuilder<P> {
 
 
     /// Set a custom security manager
-    pub fn with_security(mut self, security: Arc<SecurityManager>) -> Self {
+    pub fn with_security(mut self, security: Arc<dyn SecurityHandler>) -> Self {
         self.security = Some(security);
         self
     }
