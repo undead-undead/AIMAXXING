@@ -26,7 +26,7 @@ impl Ollama {
     /// 
     /// # Example
     /// ```no_run
-    /// use providers::ollama::Ollama;
+    /// use aimaxxing_providers::ollama::Ollama;
     /// 
     /// // Connect to local Ollama instance
     /// let ollama = Ollama::new("http://localhost:11434/v1").unwrap();
@@ -55,7 +55,7 @@ impl Ollama {
 impl Provider for Ollama {
     async fn stream_completion(
         &self,
-        request: brain::agent::provider::ChatRequest,
+        request: aimaxxing_core::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         self.inner.stream_completion(request).await
     }
@@ -64,14 +64,14 @@ impl Provider for Ollama {
         "ollama"
     }
 
-    fn metadata() -> brain::agent::provider::ProviderMetadata {
-        brain::agent::provider::ProviderMetadata {
+    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
+        aimaxxing_core::agent::provider::ProviderMetadata {
             id: "ollama".to_string(),
             name: "Ollama (Local)".to_string(),
             description: "Run large language models locally on your own machine.".to_string(),
             icon: "🦙".to_string(),
             fields: vec![
-                brain::agent::provider::ProviderField {
+                aimaxxing_core::agent::provider::ProviderField {
                     key: "OLLAMA_BASE_URL".to_string(),
                     label: "Base URL".to_string(),
                     field_type: "text".to_string(),

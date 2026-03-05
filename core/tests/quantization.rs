@@ -1,5 +1,5 @@
-use brain::store::file::{FileStore, FileStoreConfig};
-use brain::rag::VectorStore;
+use aimaxxing_core::store::file::{FileStore, FileStoreConfig};
+use aimaxxing_core::rag::VectorStore;
 use std::collections::HashMap;
 use tempfile::tempdir;
 
@@ -42,8 +42,8 @@ async fn test_quantized_search() {
     
     // Let's create a Mock Embedder
     use async_trait::async_trait;
-    use brain::rag::Embeddings;
-    use brain::error::Result;
+    use aimaxxing_core::rag::Embeddings;
+    use aimaxxing_core::error::Result;
     use std::sync::Arc;
 
     struct MockEmbedder;

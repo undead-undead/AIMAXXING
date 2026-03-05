@@ -3,7 +3,7 @@ use dashmap::DashMap;
 use tokio::sync::oneshot;
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
-use brain::agent::core::ApprovalHandler;
+use aimaxxing_core::agent::core::ApprovalHandler;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

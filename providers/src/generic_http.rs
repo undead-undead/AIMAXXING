@@ -39,10 +39,10 @@ impl GenericHttpProvider {
 impl Provider for GenericHttpProvider {
     async fn stream_completion(
         &self,
-        request: brain::agent::provider::ChatRequest,
+        request: aimaxxing_core::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         // This is where we need the OpenAI-specific logic for conversion.
-        // But since most providers are OpenAI compatible, we can use the OpenAI engine.
+        // But since most aimaxxing_providers are OpenAI compatible, we can use the OpenAI engine.
         // However, to truly refactor, we should move the conversion logic here or use a shared one.
         
         // For now, let's keep it simple and just use the name for identifying the provider.
@@ -54,7 +54,7 @@ impl Provider for GenericHttpProvider {
     fn name(&self) -> &'static str {
         // This is tricky because it returns &'static str. 
         // We might need to leak the string or use a box.
-        // For generic providers, we might want to return a dynamic string or just "generic".
+        // For generic aimaxxing_providers, we might want to return a dynamic string or just "generic".
         "generic"
     }
 }

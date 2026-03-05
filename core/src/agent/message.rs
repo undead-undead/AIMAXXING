@@ -164,7 +164,7 @@ pub enum ContentPart {
     ToolResult {
         /// ID of the tool call this is responding to
         tool_call_id: String,
-        /// Optional name of the tool (required by some providers like Gemini)
+        /// Optional name of the tool (required by some aimaxxing_providers like Gemini)
         #[serde(skip_serializing_if = "Option::is_none")]
         name: Option<String>,
         /// Result content

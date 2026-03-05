@@ -8,7 +8,7 @@ use reqwest::header::CONTENT_TYPE;
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result, Message, StreamingChoice, StreamingResponse, ToolDefinition, Provider, HttpConfig};
-use brain::agent::message::{Role, Content};
+use aimaxxing_core::agent::message::{Role, Content};
 
 const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -171,16 +171,16 @@ impl Gemini {
                     Content::Parts(content_parts) => content_parts
                         .into_iter()
                         .filter_map(|p| match p {
-                            brain::agent::message::ContentPart::Text { text } => Some(Part::Text { text }),
-                            brain::agent::message::ContentPart::Image { source } => {
+                            aimaxxing_core::agent::message::ContentPart::Text { text } => Some(Part::Text { text }),
+                            aimaxxing_core::agent::message::ContentPart::Image { source } => {
                                 let (media_type, data) = match source {
-                                    brain::agent::message::ImageSource::Url { url } => {
+                                    aimaxxing_core::agent::message::ImageSource::Url { url } => {
                                         // Gemini doesn't support URLs directly in the same way as OpenAI, 
                                         // usually needs to be downloaded or provided as data.
                                         // For now, we only support base64 for simplicity in this tool.
                                         ("image/png".to_string(), url) // This is a placeholder for URL support
                                     }
-                                    brain::agent::message::ImageSource::Base64 { media_type, data } => {
+                                    aimaxxing_core::agent::message::ImageSource::Base64 { media_type, data } => {
                                         (media_type, data)
                                     }
                                 };
@@ -189,7 +189,7 @@ impl Gemini {
                                     data,
                                 }))
                             },
-                            brain::agent::message::ContentPart::ToolCall { name, arguments, .. } => {
+                            aimaxxing_core::agent::message::ContentPart::ToolCall { name, arguments, .. } => {
                                 Some(Part::FunctionCall {
                                     function_call: FunctionCall {
                                         name,
@@ -197,7 +197,7 @@ impl Gemini {
                                     }
                                 })
                             },
-                            brain::agent::message::ContentPart::ToolResult { name, content, .. } => {
+                            aimaxxing_core::agent::message::ContentPart::ToolResult { name, content, .. } => {
                                 // Gemini requires a name here. If it's missing, we are in trouble.
                                 // We fallback to "unknown" or hope caller provided it.
                                 let name = name.unwrap_or_else(|| "unknown".to_string());
@@ -249,9 +249,9 @@ impl Gemini {
 impl Provider for Gemini {
     async fn stream_completion(
         &self,
-        request: brain::agent::provider::ChatRequest,
+        request: aimaxxing_core::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
-        let brain::agent::provider::ChatRequest {
+        let aimaxxing_core::agent::provider::ChatRequest {
             model,
             system_prompt,
             messages,
@@ -307,14 +307,14 @@ impl Provider for Gemini {
         "gemini"
     }
 
-    fn metadata() -> brain::agent::provider::ProviderMetadata {
-        brain::agent::provider::ProviderMetadata {
+    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
+        aimaxxing_core::agent::provider::ProviderMetadata {
             id: "gemini".to_string(),
             name: "Google Gemini".to_string(),
             description: "Advanced multimodal models (1.5 Pro, Flash) from Google DeepMind.".to_string(),
             icon: "♊".to_string(),
             fields: vec![
-                brain::agent::provider::ProviderField {
+                aimaxxing_core::agent::provider::ProviderField {
                     key: "GEMINI_API_KEY".to_string(),
                     label: "API Key".to_string(),
                     field_type: "password".to_string(),
@@ -356,7 +356,7 @@ where
                                 // Check for usage metadata (usually in the last chunk)
                                 if let Some(usage) = chunk.usage_metadata {
                                     return Some((
-                                        Ok(StreamingChoice::Usage(brain::agent::streaming::Usage {
+                                        Ok(StreamingChoice::Usage(aimaxxing_core::agent::streaming::Usage {
                                             prompt_tokens: usage.prompt_token_count,
                                             completion_tokens: usage.candidates_token_count,
                                             total_tokens: usage.total_token_count,

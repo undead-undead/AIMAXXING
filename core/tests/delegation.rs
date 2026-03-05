@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use async_trait::async_trait;
-use brain::prelude::*;
-use brain::agent::multi_agent::{Coordinator, AgentRole};
-use brain::agent::provider::{Provider, ChatRequest};
+use aimaxxing_core::prelude::*;
+use aimaxxing_core::agent::multi_agent::{Coordinator, AgentRole};
+use aimaxxing_core::agent::provider::{Provider, ChatRequest};
 use anyhow::Result;
 
 // Mock provider that can be configured to return specific responses or tool calls
@@ -20,9 +20,9 @@ impl Provider for MockProvider {
     async fn stream_completion(
         &self,
         _request: ChatRequest,
-    ) -> brain::error::Result<StreamingResponse> {
+    ) -> aimaxxing_core::error::Result<StreamingResponse> {
         use futures::stream;
-        use brain::agent::streaming::StreamingChoice;
+        use aimaxxing_core::agent::streaming::StreamingChoice;
 
         let mut choices = Vec::new();
         if let Some((id, name, args)) = &self.tool_call {
@@ -85,7 +85,7 @@ async fn test_multi_agent_delegation() -> Result<()> {
     assert!(assistant.has_tool("delegate"));
 
     // Actually, let's test the DelegateTool directly to avoid provider complexity
-    let tool = brain::skills::tool::DelegateTool::new(Arc::downgrade(&coordinator));
+    let tool = aimaxxing_core::skills::tool::DelegateTool::new(Arc::downgrade(&coordinator));
     let args = serde_json::json!({
         "role": "researcher",
         "task": "Calculate something"

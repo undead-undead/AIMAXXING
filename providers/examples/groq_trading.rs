@@ -4,8 +4,8 @@
 //!
 //! Set GROQ_API_KEY environment variable before running.
 
-use brain::prelude::*;
-use providers::groq::{Groq, LLAMA_3_3_70B};
+use aimaxxing_core::prelude::*;
+use aimaxxing_providers::groq::{Groq, LLAMA_3_3_70B};
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AppConfig {
     #[serde(default)]
-    pub providers: ProviderConfig,
+    pub aimaxxing_providers: ProviderConfig,
     #[serde(default)]
     pub server: ServerConfig,
     #[serde(default)]
@@ -173,13 +173,13 @@ impl AppConfig {
 
     pub fn resolve_secrets(&mut self, vault: &dyn vault::SecretVault) -> Result<()> {
         // Resolve provider keys
-        self.providers.openai_api_key = resolve_one(self.providers.openai_api_key.take(), vault)?;
-        self.providers.anthropic_api_key =
-            resolve_one(self.providers.anthropic_api_key.take(), vault)?;
-        self.providers.gemini_api_key = resolve_one(self.providers.gemini_api_key.take(), vault)?;
-        self.providers.deepseek_api_key =
-            resolve_one(self.providers.deepseek_api_key.take(), vault)?;
-        self.providers.minimax_api_key = resolve_one(self.providers.minimax_api_key.take(), vault)?;
+        self.aimaxxing_providers.openai_api_key = resolve_one(self.aimaxxing_providers.openai_api_key.take(), vault)?;
+        self.aimaxxing_providers.anthropic_api_key =
+            resolve_one(self.aimaxxing_providers.anthropic_api_key.take(), vault)?;
+        self.aimaxxing_providers.gemini_api_key = resolve_one(self.aimaxxing_providers.gemini_api_key.take(), vault)?;
+        self.aimaxxing_providers.deepseek_api_key =
+            resolve_one(self.aimaxxing_providers.deepseek_api_key.take(), vault)?;
+        self.aimaxxing_providers.minimax_api_key = resolve_one(self.aimaxxing_providers.minimax_api_key.take(), vault)?;
 
         // Resolve connector tokens
         if let Some(tg) = &mut self.connectors.telegram {
@@ -232,12 +232,12 @@ mod tests {
     #[test]
     fn test_resolve_secrets() {
         let mut config = AppConfig::default();
-        config.providers.openai_api_key = Some("vault://SECRET_API_KEY".to_string());
+        config.aimaxxing_providers.openai_api_key = Some("vault://SECRET_API_KEY".to_string());
 
         config.resolve_secrets(&MockVault).unwrap();
 
         assert_eq!(
-            config.providers.openai_api_key.unwrap(),
+            config.aimaxxing_providers.openai_api_key.unwrap(),
             "mocked-secret-key"
         );
     }

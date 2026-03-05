@@ -6,8 +6,8 @@
 /// - Daily log rotation
 /// - Environment-based filtering
 
-use brain::prelude::*;
-use providers::gemini::{Gemini, GEMINI_2_0_FLASH};
+use aimaxxing_core::prelude::*;
+use aimaxxing_providers::gemini::{Gemini, GEMINI_2_0_FLASH};
 use anyhow::Result;
 use tracing::info;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -27,7 +27,7 @@ fn init_production_tracing() {
         .with_env_filter(
             EnvFilter::from_default_env()
                 .add_directive("aimaxxing=info".parse().unwrap())      // AIMAXXING logs at INFO
-                .add_directive("brain=info".parse().unwrap()) // Core logs at INFO
+                .add_directive("aimaxxing_core=info".parse().unwrap()) // Core logs at INFO
                 .add_directive("hyper=warn".parse().unwrap())     // HTTP client at WARN
                 .add_directive("reqwest=warn".parse().unwrap())   // Reqwest at WARN
         )

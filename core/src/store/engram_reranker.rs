@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use engram::hybrid_search::{Reranker, RerankCandidate, RerankScore};
+use aimaxxing_engram::hybrid_search::{Reranker, RerankCandidate, RerankScore};
 use crate::provider::Provider;
 use crate::message::{Message, Role, Content};
 use crate::error::Result;
@@ -18,14 +18,14 @@ impl EngramReranker {
 }
 
 impl Reranker for EngramReranker {
-    fn rerank(&self, query: &str, candidates: Vec<RerankCandidate>) -> engram::error::Result<Vec<RerankScore>> {
+    fn rerank(&self, query: &str, candidates: Vec<RerankCandidate>) -> aimaxxing_engram::error::Result<Vec<RerankScore>> {
         if candidates.is_empty() {
             return Ok(Vec::new());
         }
 
         // We need to run the async completion in a blocking fashion or use a runtime handle
-        // inside the trait's sync method. Note: engram's Reranker trait is sync (but called from async context in brain).
-        // Since brain will use this, we can use tokio::task::block_in_place if needed, 
+        // inside the trait's sync method. Note: aimaxxing_engram's Reranker trait is sync (but called from async context in aimaxxing_core).
+        // Since aimaxxing_core will use this, we can use tokio::task::block_in_place if needed, 
         // but it's better if Engram's trait was async.
         // For now, we'll use a local runtime handle if available or block_on.
         
@@ -65,7 +65,7 @@ impl Reranker for EngramReranker {
 
         match result {
             Ok(scores) => Ok(scores),
-            Err(e) => Err(engram::error::EngramError::Custom(e.to_string())),
+            Err(e) => Err(aimaxxing_engram::error::EngramError::Custom(e.to_string())),
         }
     }
 }

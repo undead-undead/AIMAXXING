@@ -1,5 +1,5 @@
-use brain::prelude::*;
-use brain::agent::memory::ShortTermMemory;
+use aimaxxing_core::prelude::*;
+use aimaxxing_core::agent::memory::ShortTermMemory;
 
 #[tokio::test]
 async fn verify_short_term_memory_limits() {

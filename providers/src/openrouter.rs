@@ -29,7 +29,7 @@ impl OpenRouter {
 impl Provider for OpenRouter {
     async fn stream_completion(
         &self,
-        request: brain::agent::provider::ChatRequest,
+        request: aimaxxing_core::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         self.inner.stream_completion(request).await
     }
@@ -38,14 +38,14 @@ impl Provider for OpenRouter {
         "openrouter"
     }
 
-    fn metadata() -> brain::agent::provider::ProviderMetadata {
-        brain::agent::provider::ProviderMetadata {
+    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
+        aimaxxing_core::agent::provider::ProviderMetadata {
             id: "openrouter".to_string(),
             name: "OpenRouter".to_string(),
             description: "A unified API for every AI model. Access GPT-4, Claude 3, and more.".to_string(),
             icon: "🌐".to_string(),
             fields: vec![
-                brain::agent::provider::ProviderField {
+                aimaxxing_core::agent::provider::ProviderField {
                     key: "OPENROUTER_API_KEY".to_string(),
                     label: "API Key".to_string(),
                     field_type: "password".to_string(),

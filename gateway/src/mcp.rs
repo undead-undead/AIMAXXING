@@ -2,7 +2,7 @@ use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use brain::skills::{SkillLoader, tool::Tool};
+use aimaxxing_core::skills::{SkillLoader, tool::Tool};
 use tracing::{info, error};
 
 #[derive(Debug, Deserialize)]

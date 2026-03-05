@@ -7,13 +7,13 @@
 /// 4. Actor-based FileStrategyStore (NEW)
 /// 5. Unified architecture
 
-use brain::prelude::*;
-use brain::trading::risk::{TradeContext, RiskConfig, RiskManager, RiskCheckBuilder, InMemoryRiskStore};
-use brain::skills::SkillExecutionConfig;
-use brain::trading::strategy::{FileStrategyStore, Strategy, Condition, Action, PriceDirection, StrategyStore};
-use brain::infra::maintenance::{MaintenanceManager, MaintenanceConfig};
-use brain::infra::notification::NotifyChannel;
-use brain::agent::memory::ShortTermMemory;
+use aimaxxing_core::prelude::*;
+use aimaxxing_core::trading::risk::{TradeContext, RiskConfig, RiskManager, RiskCheckBuilder, InMemoryRiskStore};
+use aimaxxing_core::skills::SkillExecutionConfig;
+use aimaxxing_core::trading::strategy::{FileStrategyStore, Strategy, Condition, Action, PriceDirection, StrategyStore};
+use aimaxxing_core::infra::maintenance::{MaintenanceManager, MaintenanceConfig};
+use aimaxxing_core::infra::notification::NotifyChannel;
+use aimaxxing_core::agent::memory::ShortTermMemory;
 use std::sync::Arc;
 use rust_decimal_macros::dec;
 use anyhow::Result;

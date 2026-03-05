@@ -1,6 +1,6 @@
 //! MCP Client Module
 //!
-//! Allows AIMAXXING to consume external MCP servers as tool providers.
+//! Allows AIMAXXING to consume external MCP servers as tool aimaxxing_providers.
 //! Supports both Stdio (local process) and SSE (remote HTTP) transports.
 //!
 //! This is completely decoupled — activating it adds zero overhead

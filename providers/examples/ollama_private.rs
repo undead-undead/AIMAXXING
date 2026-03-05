@@ -7,8 +7,8 @@
 //! 2. Pull a model: ollama pull llama3.1:8b
 //! 3. Start Ollama server (usually auto-starts)
 
-use brain::prelude::*;
-use providers::ollama::{Ollama, LLAMA_3_1_8B};
+use aimaxxing_core::prelude::*;
+use aimaxxing_providers::ollama::{Ollama, LLAMA_3_1_8B};
 
 #[tokio::main]
 async fn main() -> Result<()> {

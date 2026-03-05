@@ -32,7 +32,7 @@ impl Moonshot {
 impl Provider for Moonshot {
     async fn stream_completion(
         &self,
-        request: brain::agent::provider::ChatRequest,
+        request: aimaxxing_core::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         self.inner.stream_completion(request).await
     }
@@ -41,13 +41,13 @@ impl Provider for Moonshot {
         "moonshot"
     }
 
-    fn metadata() -> brain::agent::provider::ProviderMetadata {
-        brain::agent::provider::ProviderMetadata {
+    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
+        aimaxxing_core::agent::provider::ProviderMetadata {
             id: "moonshot".to_string(),
             name: "Moonshot (Kimi)".to_string(),
             description: "High-performance LLMs from Moonshot AI".to_string(),
             icon: "🌙".to_string(),
-            fields: vec![brain::agent::provider::ProviderField {
+            fields: vec![aimaxxing_core::agent::provider::ProviderField {
                 key: "moonshot_api_key".to_string(),
                 label: "API Key".to_string(),
                 field_type: "password".to_string(),

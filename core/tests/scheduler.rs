@@ -4,12 +4,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 
-use brain::agent::message::Message;
-use brain::agent::multi_agent::{AgentMessage, AgentRole, Coordinator, MultiAgent};
-use brain::agent::personality::Persona;
-use brain::agent::scheduler::{JobPayload, JobSchedule};
-use brain::error::Result;
-use brain::skills::tool::{CronTool, Tool};
+use aimaxxing_core::agent::message::Message;
+use aimaxxing_core::agent::multi_agent::{AgentMessage, AgentRole, Coordinator, MultiAgent};
+use aimaxxing_core::agent::personality::Persona;
+use aimaxxing_core::agent::scheduler::{JobPayload, JobSchedule};
+use aimaxxing_core::error::Result;
+use aimaxxing_core::skills::tool::{CronTool, Tool};
 
 struct MockAgent {
     role: AgentRole,

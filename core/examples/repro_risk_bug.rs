@@ -1,7 +1,7 @@
 
 #[tokio::main]
 async fn main() {
-    use brain::trading::risk::{RiskManager, TradeContext, RiskConfig, InMemoryRiskStore};
+    use aimaxxing_core::trading::risk::{RiskManager, TradeContext, RiskConfig, InMemoryRiskStore};
     use rust_decimal_macros::dec;
 
     let manager = RiskManager::new().await.unwrap();

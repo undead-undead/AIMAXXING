@@ -1,4 +1,4 @@
-use brain::skills::tool::{GenerateImageTool, Tool};
+use aimaxxing_core::skills::tool::{GenerateImageTool, Tool};
 
 #[tokio::test]
 async fn test_generate_image_tool_definition() {

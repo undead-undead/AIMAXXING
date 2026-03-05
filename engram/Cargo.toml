@@ -1,5 +1,5 @@
 [package]
-name = "engram"
+name = "aimaxxing-engram"
 version.workspace = true
 edition.workspace = true
 authors = ["AIMAXXING Team"]
@@ -11,7 +11,7 @@ exclude = ["*.db"]
 # Core async runtime
 tokio = { version = "1.35", features = ["full"] }
 async-trait = "0.1"
-brain = { workspace = true }
+aimaxxing-core = { package = "aimaxxing-core", workspace = true }
 
 # Engram-KV storage engine (pure Rust, mmap, ACID)
 redb = "2.4"

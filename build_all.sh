@@ -3,7 +3,7 @@ set -e
 
 # AIMAXXING Full Build Script
 echo "📦 Building AIMAXXING Panel (WASM)..."
-cd aimaxxing-panel
+cd panel
 trunk build --release
 cd ..
 

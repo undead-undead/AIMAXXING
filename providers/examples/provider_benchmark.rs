@@ -7,8 +7,8 @@
 //! - GROQ_API_KEY
 //! - Ollama server running locally
 
-use brain::prelude::*;
-use providers::{
+use aimaxxing_core::prelude::*;
+use aimaxxing_providers::{
     openai::{OpenAI, GPT_4O_MINI},
     groq::{Groq, LLAMA_3_1_8B as GROQ_LLAMA},
     ollama::{Ollama, LLAMA_3_1_8B as OLLAMA_LLAMA},

@@ -7,7 +7,7 @@ use futures::stream::Stream;
 // use std::convert::Infallible;
 use serde::{Deserialize, Serialize};
 use crate::api::server::AppState;
-use engram::HybridSearchResult;
+use aimaxxing_engram::HybridSearchResult;
 use tokio_stream::StreamExt as _; 
 
 #[derive(Debug, Deserialize)]

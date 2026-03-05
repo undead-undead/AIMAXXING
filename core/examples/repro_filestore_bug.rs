@@ -1,8 +1,8 @@
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use brain::store::file::{FileStore, FileStoreConfig};
-    use brain::rag::VectorStore;
+    use aimaxxing_core::store::file::{FileStore, FileStoreConfig};
+    use aimaxxing_core::rag::VectorStore;
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::sync::Arc;

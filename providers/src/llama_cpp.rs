@@ -41,7 +41,7 @@ impl LlamaCpp {
 impl Provider for LlamaCpp {
     async fn stream_completion(
         &self,
-        request: brain::agent::provider::ChatRequest,
+        request: aimaxxing_core::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         let model = self.model.clone();
         let backend = self.backend.clone();
@@ -61,8 +61,8 @@ impl Provider for LlamaCpp {
             }
             for msg in request.messages {
                 let role = match msg.role {
-                    brain::agent::message::Role::User => "user",
-                    brain::agent::message::Role::Assistant => "assistant",
+                    aimaxxing_core::agent::message::Role::User => "user",
+                    aimaxxing_core::agent::message::Role::Assistant => "assistant",
                     _ => "user",
                 };
                 prompt.push_str(&format!("<|{}|>\n{}<|end|>\n", role, msg.text()));
@@ -106,13 +106,13 @@ impl Provider for LlamaCpp {
         "llama_cpp"
     }
 
-    fn metadata() -> brain::agent::provider::ProviderMetadata {
-        brain::agent::provider::ProviderMetadata {
+    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
+        aimaxxing_core::agent::provider::ProviderMetadata {
             id: "llama_cpp".to_string(),
             name: "Llama.cpp (Local GGUF)".to_string(),
             description: "Local inference using GGUF models via llama.cpp".to_string(),
             icon: "🦙".to_string(),
-            fields: vec![brain::agent::provider::ProviderField {
+            fields: vec![aimaxxing_core::agent::provider::ProviderField {
                 key: "llama_cpp_model_path".to_string(),
                 label: "Model Path".to_string(),
                 field_type: "text".to_string(),

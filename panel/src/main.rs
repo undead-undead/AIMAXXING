@@ -47,13 +47,14 @@ fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_title("AIMAXXING // Control Panel")
-            .with_inner_size(Vec2::new(1280.0, 780.0))
-            .with_min_inner_size(Vec2::new(800.0, 500.0))
-            .with_resizable(true)
+            .with_inner_size(Vec2::new(1024.0, 768.0))
+            .with_resizable(false)
+            .with_decorations(true)
+            .with_transparent(false)
             .with_icon(load_icon()),
         centered: true,
-        // Use GPU hardware acceleration, never fall back to software rasterizer
         hardware_acceleration: eframe::HardwareAcceleration::Required,
+        vsync: false, // Reduce frame latency during resize
         ..Default::default()
     };
 

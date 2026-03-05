@@ -1,7 +1,7 @@
-use brain::agent::provider::{ChatRequest, Provider};
-use brain::agent::streaming::StreamingResponse;
-use brain::prelude::*;
-use brain::skills::SkillLoader;
+use aimaxxing_core::agent::provider::{ChatRequest, Provider};
+use aimaxxing_core::agent::streaming::StreamingResponse;
+use aimaxxing_core::prelude::*;
+use aimaxxing_core::skills::SkillLoader;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tempfile::tempdir;
@@ -18,7 +18,7 @@ impl Provider for MockProvider {
     async fn stream_completion(
         &self,
         _request: ChatRequest,
-    ) -> brain::error::Result<StreamingResponse> {
+    ) -> aimaxxing_core::error::Result<StreamingResponse> {
         unimplemented!("MockProvider for test_forge doesn't need to stream")
     }
     fn name(&self) -> &'static str {

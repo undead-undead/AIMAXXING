@@ -1,7 +1,7 @@
-use brain::agent::core::Agent;
-use brain::agent::provider::Provider;
-use brain::agent::streaming::StreamingResponse;
-use brain::infra::observable::MetricsRegistry;
+use aimaxxing_core::agent::core::Agent;
+use aimaxxing_core::agent::provider::Provider;
+use aimaxxing_core::agent::streaming::StreamingResponse;
+use aimaxxing_core::infra::observable::MetricsRegistry;
 use async_trait::async_trait;
 use futures::stream;
 use std::sync::Arc;
@@ -16,10 +16,10 @@ impl Provider for MockProvider {
 
     async fn stream_completion(
         &self,
-        _request: brain::agent::provider::ChatRequest,
-    ) -> brain::error::Result<StreamingResponse> {
+        _request: aimaxxing_core::agent::provider::ChatRequest,
+    ) -> aimaxxing_core::error::Result<StreamingResponse> {
         let stream = stream::once(async {
-            Ok(brain::agent::streaming::StreamingChoice::Message(
+            Ok(aimaxxing_core::agent::streaming::StreamingChoice::Message(
                 "Hello".to_string(),
             ))
         });
@@ -48,7 +48,7 @@ async fn test_agent_metrics_collection() {
         snapshot.contains_key("test_agent:steps_total"),
         "Metrics should contain steps_total"
     );
-    if let Some(brain::infra::observable::MetricValue::Counter(count)) =
+    if let Some(aimaxxing_core::infra::observable::MetricValue::Counter(count)) =
         snapshot.get("test_agent:steps_total")
     {
         assert!(*count >= 1, "Steps count should be at least 1");

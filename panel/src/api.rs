@@ -63,7 +63,7 @@ pub struct ProviderMetadata {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProviderSchemaResponse {
-    pub providers: Vec<ProviderMetadata>,
+    pub aimaxxing_providers: Vec<ProviderMetadata>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -187,7 +187,7 @@ impl GatewayClient {
 
     /// Fetch LLM provider metadata schema
     pub async fn get_provider_schema(&self) -> Result<ProviderSchemaResponse> {
-        let url = format!("{}/api/providers/schema", self.base_url);
+        let url = format!("{}/api/aimaxxing_providers/schema", self.base_url);
         let resp = self.client.get(&url).send().await?;
         Ok(resp.json::<ProviderSchemaResponse>().await?)
     }

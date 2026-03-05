@@ -3,7 +3,7 @@
 //! This example simulates 100 concurrent agents to measure memory and CPU overhead.
 //! Run with: /usr/bin/time -v cargo run --release --example resource_benchmark
 
-use brain::prelude::*;
+use aimaxxing_core::prelude::*;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use std::path::PathBuf;
@@ -12,7 +12,7 @@ use std::path::PathBuf;
 struct BenchmarkProvider;
 
 #[async_trait::async_trait]
-impl brain::provider::Provider for BenchmarkProvider {
+impl aimaxxing_core::provider::Provider for BenchmarkProvider {
     fn name(&self) -> &'static str { "benchmark" }
     
     async fn stream_completion(
@@ -29,7 +29,7 @@ impl brain::provider::Provider for BenchmarkProvider {
         // sleep(Duration::from_millis(10)).await;
         
         use futures::stream;
-        use brain::streaming::StreamingChoice;
+        use aimaxxing_core::streaming::StreamingChoice;
         let chunks = vec![Ok(StreamingChoice::Message("Benchmark response".to_string()))];
         Ok(StreamingResponse::new(Box::pin(stream::iter(chunks))))
     }

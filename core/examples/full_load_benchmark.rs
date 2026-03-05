@@ -5,21 +5,21 @@
 //! - 1000 Documents in Long-Term Memory (Disk/SQLite)
 //! - 100 Concurrent Agents performing RAG + Chat actions
 
-use brain::prelude::*;
+use aimaxxing_core::prelude::*;
 use std::sync::Arc;
 use std::path::PathBuf;
 
 struct BenchmarkProvider;
 
 #[async_trait::async_trait]
-impl brain::provider::Provider for BenchmarkProvider {
+impl aimaxxing_core::provider::Provider for BenchmarkProvider {
     fn name(&self) -> &'static str { "benchmark" }
     async fn stream_completion(
         &self, _m: &str, _s: Option<&str>, _msgs: Vec<Message>, _t: Vec<ToolDefinition>,
         _temp: Option<f64>, _mt: Option<u64>, _ep: Option<serde_json::Value>,
     ) -> Result<StreamingResponse> {
         use futures::stream;
-        use brain::streaming::StreamingChoice;
+        use aimaxxing_core::streaming::StreamingChoice;
         // Mock a response that might trigger a tool use (simulated logic elsewhere)
         let chunks = vec![Ok(StreamingChoice::Message("Response".to_string()))];
         Ok(StreamingResponse::new(Box::pin(stream::iter(chunks))))

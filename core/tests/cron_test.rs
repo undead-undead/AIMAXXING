@@ -1,5 +1,5 @@
-use brain::agent::scheduler::{Scheduler, JobSchedule, JobPayload, SqliteCronStore};
-use brain::agent::multi_agent::{Coordinator, AgentRole};
+use aimaxxing_core::agent::scheduler::{Scheduler, JobSchedule, JobPayload, SqliteCronStore};
+use aimaxxing_core::agent::multi_agent::{Coordinator, AgentRole};
 use std::sync::{Arc, Weak};
 use uuid::Uuid;
 use tempfile::NamedTempFile;

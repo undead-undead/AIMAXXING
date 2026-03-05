@@ -1,8 +1,8 @@
 //! Test provider implementations (without needing API keys)
 //!
-//! This tests that all providers can be instantiated correctly.
+//! This tests that all aimaxxing_providers can be instantiated correctly.
 //!
-//! Run with: cargo test --package providers --all-features
+//! Run with: cargo test --package aimaxxing_providers --all-features
 
 #[cfg(test)]
 mod provider_tests {
@@ -99,7 +99,7 @@ mod provider_tests {
         let groq = Groq::new("test").unwrap();
         let ollama = Ollama::new("http://localhost:11434/v1").unwrap();
 
-        // Ensure all providers have unique names
+        // Ensure all aimaxxing_providers have unique names
         assert_ne!(openai.name(), groq.name());
         assert_ne!(openai.name(), ollama.name());
         assert_ne!(groq.name(), ollama.name());

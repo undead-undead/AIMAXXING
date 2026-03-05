@@ -1,4 +1,4 @@
-use brain::skills::tool::{SpeakTool, TranscribeTool, Tool};
+use aimaxxing_core::skills::tool::{SpeakTool, TranscribeTool, Tool};
 
 #[tokio::test]
 async fn test_speak_tool_definition() {

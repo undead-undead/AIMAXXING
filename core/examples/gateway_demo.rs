@@ -9,8 +9,8 @@
 //!
 //! Then open http://127.0.0.1:18888/aimaxxing/ in your browser.
 
-use brain::bus::message_bus::{MessageBus, OutboundMessage};
-use brain::infra::gateway::Gateway;
+use aimaxxing_core::bus::message_bus::{MessageBus, OutboundMessage};
+use aimaxxing_core::infra::aimaxxing_gateway::Gateway;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
     // Initialize logging
     tracing_subscriber::registry()
         .with(fmt::layer())
-        .with(EnvFilter::from_default_env().add_directive("brain=info".parse()?))
+        .with(EnvFilter::from_default_env().add_directive("aimaxxing_core=info".parse()?))
         .init();
 
     println!("╔════════════════════════════════════════╗");

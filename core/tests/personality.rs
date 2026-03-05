@@ -1,4 +1,4 @@
-use brain::prelude::*;
+use aimaxxing_core::prelude::*;
 use std::sync::Arc;
 
 #[tokio::test]
@@ -15,10 +15,10 @@ async fn test_persona_injection() {
     // We can test ContextManager directly
     let mut manager = ContextManager::new(ContextConfig::default());
     let persona_shared = Arc::new(parking_lot::RwLock::new(Some(persona)));
-    manager.add_injector(Box::new(brain::agent::personality::PersonalityManager::new(persona_shared)));
+    manager.add_injector(Box::new(aimaxxing_core::agent::personality::PersonalityManager::new(persona_shared)));
     
     let history = vec![Message::user("Hello")];
-    let strategy = brain::agent::attempt::Strategy::Standard;
+    let strategy = aimaxxing_core::agent::attempt::Strategy::Standard;
     let context = manager.build_context(&history, &strategy).await.expect("Failed to build context");
     
     // Should have: Personality System Prompt + User Message

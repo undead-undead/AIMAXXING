@@ -262,6 +262,13 @@ pub struct AppState {
 
     /// UI Language state
     pub language: Language,
+
+    /// Tracked UI scale factor (based on window width). Updated every frame.
+    /// Used to avoid re-setting text styles when scale hasn't changed.
+    pub last_ui_scale: f32,
+
+    /// Whether we have performed the initial 50% screen-size resize.
+    pub initial_resize_done: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -471,6 +478,8 @@ impl AppState {
 
             night_mode,
             language,
+            last_ui_scale: 0.0,
+            initial_resize_done: false,
         }
     }
 

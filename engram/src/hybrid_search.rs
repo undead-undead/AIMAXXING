@@ -30,7 +30,7 @@ pub struct HybridSearchConfig {
 impl Default for HybridSearchConfig {
     fn default() -> Self {
         Self {
-            db_path: PathBuf::from("engram.db"),
+            db_path: PathBuf::from("aimaxxing_engram.db"),
             vector_dimension: 384,
             max_vectors: 100_000,
             rrf_k: 60.0,

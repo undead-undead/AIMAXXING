@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 
 use crate::{Result, StreamingResponse, Provider};
-use brain::agent::streaming::MockStreamBuilder;
+use aimaxxing_core::agent::streaming::MockStreamBuilder;
 
 /// A mock provider for testing
 pub struct MockProvider {
@@ -38,11 +38,11 @@ impl MockProvider {
 impl Provider for MockProvider {
     async fn stream_completion(
         &self,
-        request: brain::agent::provider::ChatRequest,
+        request: aimaxxing_core::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         // Simple logic to avoid infinite loops: 
         // Only return tool calls if the last message isn't already a tool result.
-        let is_last_tool_result = request.messages.last().map(|m| m.role == brain::agent::message::Role::Tool).unwrap_or(false);
+        let is_last_tool_result = request.messages.last().map(|m| m.role == aimaxxing_core::agent::message::Role::Tool).unwrap_or(false);
 
         // Split response into chunks for realistic streaming simulation
         let chunks: Vec<String> = self
@@ -76,8 +76,8 @@ impl Provider for MockProvider {
         "mock"
     }
 
-    fn metadata() -> brain::agent::provider::ProviderMetadata {
-        brain::agent::provider::ProviderMetadata {
+    fn metadata() -> aimaxxing_core::agent::provider::ProviderMetadata {
+        aimaxxing_core::agent::provider::ProviderMetadata {
             id: "mock".to_string(),
             name: "Mock Provider".to_string(),
             description: "A provider for testing and development".to_string(),
@@ -98,7 +98,7 @@ mod tests {
     async fn test_mock_provider() {
         let provider = MockProvider::new("Hello, world!");
         let stream = provider
-            .stream_completion(brain::agent::provider::ChatRequest {
+            .stream_completion(aimaxxing_core::agent::provider::ChatRequest {
                 model: "test".to_string(),
                 messages: vec![Message::user("Hi")],
                 ..Default::default()

@@ -95,7 +95,7 @@ pub fn all_blueprints() -> Vec<Blueprint> {
             id: "knowledge_curator".into(),
             name: "Knowledge Curator".into(),
             category: "Productivity".into(),
-            description: "Knowledge capture, Zettelkasten organization, associative linking, and second brain.".into(),
+            description: "Knowledge capture, Zettelkasten organization, associative linking, and second aimaxxing_core.".into(),
             template: include_str!("templates/knowledge_curator.md").into(),
         },
     ]

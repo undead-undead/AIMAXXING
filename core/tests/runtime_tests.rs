@@ -1,7 +1,7 @@
 /// Tests for the QuickJSRuntime (Phase 3) and MicroPythonRuntime discovery (Phase 4).
 /// Run with: cargo test --test runtime_tests
-use brain::skills::{SkillMetadata, SkillExecutionConfig};
-use brain::skills::runtime::{QuickJSRuntime, MicroPythonRuntime, SkillRuntime};
+use aimaxxing_core::skills::{SkillMetadata, SkillExecutionConfig};
+use aimaxxing_core::skills::runtime::{QuickJSRuntime, MicroPythonRuntime, SkillRuntime};
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -200,7 +200,7 @@ async fn test_micropython_detects_system_python() {
 
 #[tokio::test]
 async fn test_native_sandbox_registration() {
-    use brain::skills::sandbox::{NativeShellRuntime, ACTIVE_SANDBOXES};
+    use aimaxxing_core::skills::sandbox::{NativeShellRuntime, ACTIVE_SANDBOXES};
     
     let tmp = TempDir::new().unwrap();
     let scripts_dir = tmp.path().join("scripts");

@@ -1,6 +1,6 @@
-use brain::agent::message::Message;
-use brain::agent::provider::Provider;
-use providers::moonshot::{Moonshot, MOONSHOT_V1_8K};
+use aimaxxing_core::agent::message::Message;
+use aimaxxing_core::agent::provider::Provider;
+use aimaxxing_providers::moonshot::{Moonshot, MOONSHOT_V1_8K};
 use futures::StreamExt;
 use std::io::Write;
 
@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     std::io::stdout().flush()?;
 
     let mut stream = provider
-        .stream_completion(brain::agent::provider::ChatRequest {
+        .stream_completion(aimaxxing_core::agent::provider::ChatRequest {
             model: MOONSHOT_V1_8K.to_string(),
             messages,
             temperature: Some(0.7),
@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
     while let Some(result) = stream.next().await {
         match result {
             Ok(choice) => {
-                if let brain::agent::streaming::StreamingChoice::Message(text) = choice {
+                if let aimaxxing_core::agent::streaming::StreamingChoice::Message(text) = choice {
                     print!("{}", text);
                     std::io::stdout().flush()?;
                     full_response.push_str(&text);

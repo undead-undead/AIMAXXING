@@ -2,8 +2,8 @@
 //!
 //! This example starts the AIMAXXING Gateway and tests the OpenAI-compatible API.
 
-use brain::infra::gateway::Gateway;
-use brain::bus::message_bus::MessageBus;
+use aimaxxing_core::infra::aimaxxing_gateway::Gateway;
+use aimaxxing_core::bus::message_bus::MessageBus;
 use tokio::time::{sleep, Duration};
 use reqwest::Client;
 use serde_json::json;
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 sleep(Duration::from_millis(500)).await;
                 
                 // Prepare response
-                let mut outbound = brain::bus::message_bus::OutboundMessage::new(
+                let mut outbound = aimaxxing_core::bus::message_bus::OutboundMessage::new(
                     &inbound.channel,
                     &inbound.chat_id,
                     format!("Response from agent {}: I received your message '{}'", inbound.chat_id, inbound.content)

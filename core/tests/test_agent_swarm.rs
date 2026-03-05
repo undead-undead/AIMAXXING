@@ -2,15 +2,15 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 use async_trait::async_trait;
-use brain::prelude::*;
-use brain::agent::swarm::manifest::{AgentManifest, AgentStatus};
-use brain::agent::swarm::discovery::LocalDiscovery;
-use brain::agent::swarm::manager::SwarmManager;
-use brain::agent::swarm::protocol::SwarmMessage;
-use brain::agent::multi_agent::AgentRole;
-use brain::agent::provider::{Provider, ChatRequest};
-use brain::agent::streaming::StreamingResponse;
-use brain::error::Result;
+use aimaxxing_core::prelude::*;
+use aimaxxing_core::agent::swarm::manifest::{AgentManifest, AgentStatus};
+use aimaxxing_core::agent::swarm::discovery::LocalDiscovery;
+use aimaxxing_core::agent::swarm::manager::SwarmManager;
+use aimaxxing_core::agent::swarm::protocol::SwarmMessage;
+use aimaxxing_core::agent::multi_agent::AgentRole;
+use aimaxxing_core::agent::provider::{Provider, ChatRequest};
+use aimaxxing_core::agent::streaming::StreamingResponse;
+use aimaxxing_core::error::Result;
 
 // Local MockProvider implementation
 struct MockProvider;
@@ -27,7 +27,7 @@ impl Provider for MockProvider {
         // Return mostly empty response since we are testing swarm background logic, not chat
         // We can simulate a "Thinking" message to keep the agent happy
         use futures::stream;
-        let s = stream::iter(vec![Ok(brain::agent::streaming::StreamingChoice::Message("Thinking...".to_string()))]);
+        let s = stream::iter(vec![Ok(aimaxxing_core::agent::streaming::StreamingChoice::Message("Thinking...".to_string()))]);
         Ok(StreamingResponse::from_stream(s))
     }
 

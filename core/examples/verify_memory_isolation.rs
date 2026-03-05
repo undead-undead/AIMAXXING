@@ -1,5 +1,5 @@
-use brain::prelude::*;
-use brain::agent::memory::{ShortTermMemory, Memory};
+use aimaxxing_core::prelude::*;
+use aimaxxing_core::agent::memory::{ShortTermMemory, Memory};
 
 #[tokio::main]
 async fn main() -> Result<()> {

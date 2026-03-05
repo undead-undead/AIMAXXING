@@ -2,8 +2,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::json;
-use brain::skills::tool::{Tool, ToolDefinition};
-use engram::HierarchicalRetriever;
+use aimaxxing_core::skills::tool::{Tool, ToolDefinition};
+use aimaxxing_engram::HierarchicalRetriever;
 
 /// Tool that allows the Agent to perform deep recursive knowledge searches
 pub struct KnowledgeSearchTool {

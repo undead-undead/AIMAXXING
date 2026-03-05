@@ -3,24 +3,24 @@ use std::path::PathBuf;
 use anyhow::{Result, anyhow};
 use tracing::info;
 
-use brain::agent::Agent;
-use brain::agent::multi_agent::{AgentRole, Coordinator};
-use brain::agent::provider::Provider;
-use brain::config::{AppConfig, AgentConfigOverrides};
-use brain::config::vault::{KeyringVault, SecretVault};
-use providers;
-use brain::skills::tool::filesystem::{ReadFileTool, WriteFileTool, ListDirTool, EditFileTool};
-use brain::skills::tool::{
+use aimaxxing_core::agent::Agent;
+use aimaxxing_core::agent::multi_agent::{AgentRole, Coordinator};
+use aimaxxing_core::agent::provider::Provider;
+use aimaxxing_core::config::{AppConfig, AgentConfigOverrides};
+use aimaxxing_core::config::vault::{KeyringVault, SecretVault};
+use aimaxxing_providers;
+use aimaxxing_core::skills::tool::filesystem::{ReadFileTool, WriteFileTool, ListDirTool, EditFileTool};
+use aimaxxing_core::skills::tool::{
     GitOpsTool, ChartTool, MailerTool, DataTransformTool, 
     NotifierTool, CipherTool, TextExtractTool, TranscribeTool, SpeakTool
 };
-use engram::KnowledgeSearchTool;
-use engram::HierarchicalRetriever;
+use aimaxxing_engram::KnowledgeSearchTool;
+use aimaxxing_engram::HierarchicalRetriever;
 
 /// Factory for creating agents based on soul configurations
 pub struct AgentFactory {
     pub config: Arc<parking_lot::RwLock<AppConfig>>,
-    pub loader: Arc<brain::skills::SkillLoader>,
+    pub loader: Arc<aimaxxing_core::skills::SkillLoader>,
     pub coordinator: Arc<Coordinator>,
     pub retriever: Arc<HierarchicalRetriever>,
     pub base_dir: PathBuf,
@@ -30,7 +30,7 @@ pub struct AgentFactory {
 impl AgentFactory {
     pub fn new(
         config: Arc<parking_lot::RwLock<AppConfig>>,
-        loader: Arc<brain::skills::SkillLoader>,
+        loader: Arc<aimaxxing_core::skills::SkillLoader>,
         coordinator: Arc<Coordinator>,
         retriever: Arc<HierarchicalRetriever>,
         base_dir: PathBuf,
@@ -96,7 +96,7 @@ impl AgentFactory {
         
         // 1. Resolve Provider
         let provider_name = ovr.provider.clone()
-            .or_else(|| app_cfg.providers.active_provider.clone())
+            .or_else(|| app_cfg.aimaxxing_providers.active_provider.clone())
             .unwrap_or_else(|| "openai".to_string());
 
         let vault = KeyringVault::new("aimaxxing");
@@ -106,18 +106,18 @@ impl AgentFactory {
             Ok(Some(key)) => Some(key),
             _ => {
                 let from_cfg = match provider_name.as_str() {
-                    "openai" => app_cfg.providers.openai_api_key.clone(),
-                    "anthropic" => app_cfg.providers.anthropic_api_key.clone(),
-                    "gemini" => app_cfg.providers.gemini_api_key.clone(),
-                    "deepseek" => app_cfg.providers.deepseek_api_key.clone(),
-                    "minimax" => app_cfg.providers.minimax_api_key.clone(),
+                    "openai" => app_cfg.aimaxxing_providers.openai_api_key.clone(),
+                    "anthropic" => app_cfg.aimaxxing_providers.anthropic_api_key.clone(),
+                    "gemini" => app_cfg.aimaxxing_providers.gemini_api_key.clone(),
+                    "deepseek" => app_cfg.aimaxxing_providers.deepseek_api_key.clone(),
+                    "minimax" => app_cfg.aimaxxing_providers.minimax_api_key.clone(),
                     _ => None,
                 };
                 from_cfg.or_else(|| std::env::var(format!("{}_API_KEY", provider_name.to_uppercase())).ok())
             }
         };
 
-        let provider = providers::create_provider(
+        let provider = aimaxxing_providers::create_provider(
             &provider_name,
             ovr.base_url.clone(),
             api_key.clone(),

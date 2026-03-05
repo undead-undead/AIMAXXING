@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use brain::agent::multi_agent::{Coordinator, AgentRole};
-use brain::agent::scheduler::{Scheduler, JobSchedule, JobPayload, SqliteCronStore};
+use aimaxxing_core::agent::multi_agent::{Coordinator, AgentRole};
+use aimaxxing_core::agent::scheduler::{Scheduler, JobSchedule, JobPayload, SqliteCronStore};
 use chrono::Utc;
 
 #[tokio::test]

@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
-use brain::prelude::*;
-use brain::agent::provider::CircuitBreakerConfig;
+use aimaxxing_core::prelude::*;
+use aimaxxing_core::agent::provider::CircuitBreakerConfig;
 use std::time::Duration;
 
 #[derive(Clone)]
@@ -38,7 +38,7 @@ impl Provider for MockProvider {
 
     async fn stream_completion(
         &self,
-        _request: brain::agent::provider::ChatRequest,
+        _request: aimaxxing_core::agent::provider::ChatRequest,
     ) -> Result<StreamingResponse> {
         let fail = *self.should_fail.lock().unwrap();
         if fail {
@@ -72,13 +72,13 @@ async fn main() -> Result<()> {
         request_timeout: Duration::from_secs(1),
     };
 
-    let resilient_provider = brain::agent::provider::ResilientProvider::new(
+    let resilient_provider = aimaxxing_core::agent::provider::ResilientProvider::new(
         primary.clone(),
         fallback.clone(),
         config
     );
 
-    let request = brain::agent::provider::ChatRequest {
+    let request = aimaxxing_core::agent::provider::ChatRequest {
         model: "model".to_string(),
         messages: vec![Message::user("test")],
         ..Default::default()

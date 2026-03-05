@@ -1,9 +1,9 @@
-//! Integration tests for brain
+//! Integration tests for aimaxxing_core
 
-use brain::prelude::*;
-use brain::agent::message::{Message, Role, Content, ToolCall};
-use brain::agent::memory::{MemoryManager, InMemoryMemory, ShortTermMemory};
-use engram::EngramMemory;
+use aimaxxing_core::prelude::*;
+use aimaxxing_core::agent::message::{Message, Role, Content, ToolCall};
+use aimaxxing_core::agent::memory::{MemoryManager, InMemoryMemory, ShortTermMemory};
+use aimaxxing_engram::EngramMemory;
 use std::sync::Arc;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -43,7 +43,7 @@ fn test_tool_definition() {
 
 #[test]
 fn test_toolset_basic() {
-    use brain::skills::tool::ToolSet;
+    use aimaxxing_core::skills::tool::ToolSet;
 
     let toolset = ToolSet::new();
     assert!(toolset.is_empty());
@@ -52,7 +52,7 @@ fn test_toolset_basic() {
 
 #[test]
 fn test_agent_config_default() {
-    use brain::agent::core::AgentConfig;
+    use aimaxxing_core::agent::core::AgentConfig;
 
     let config = AgentConfig::default();
     assert_eq!(config.model, "gpt-4o");
@@ -63,7 +63,7 @@ fn test_agent_config_default() {
 
 #[tokio::test]
 async fn test_memory_short_term() {
-    use brain::agent::memory::{Memory, ShortTermMemory};
+    use aimaxxing_core::agent::memory::{Memory, ShortTermMemory};
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test_stm.json");
@@ -96,7 +96,7 @@ async fn test_memory_long_term_placeholder() {
 
 #[test]
 fn test_risk_config() {
-    use brain::trading::risk::RiskConfig;
+    use aimaxxing_core::trading::risk::RiskConfig;
 
     let config = RiskConfig::default();
     assert!(config.max_single_trade_usd > Decimal::ZERO);
@@ -105,7 +105,7 @@ fn test_risk_config() {
 
 #[tokio::test]
 async fn test_risk_manager_basic_checks() {
-    use brain::trading::risk::{RiskManager, RiskConfig, TradeContext, InMemoryRiskStore};
+    use aimaxxing_core::trading::risk::{RiskManager, RiskConfig, TradeContext, InMemoryRiskStore};
     use std::sync::Arc;
 
     let config = RiskConfig {
@@ -148,7 +148,7 @@ async fn test_risk_manager_basic_checks() {
 
 #[test]
 fn test_strategy_condition_serialization() {
-    use brain::trading::strategy::Condition;
+    use aimaxxing_core::trading::strategy::Condition;
 
     let condition = Condition::PriceAbove {
         token: "SOL".to_string(),
@@ -175,7 +175,7 @@ async fn test_simulation_basic_placeholder() {
 
 #[test]
 fn test_error_types() {
-    use brain::error::Error;
+    use aimaxxing_core::error::Error;
 
     let err = Error::agent_config("Invalid model");
     assert!(matches!(err, Error::AgentConfig { .. }));
@@ -186,7 +186,7 @@ fn test_error_types() {
 
 #[test]
 fn test_streaming_choice_types() {
-    use brain::agent::streaming::StreamingChoice;
+    use aimaxxing_core::agent::streaming::StreamingChoice;
 
     let msg = StreamingChoice::Message("Hello".to_string());
     assert!(matches!(msg, StreamingChoice::Message(_)));

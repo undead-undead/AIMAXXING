@@ -1,5 +1,5 @@
-use brain::skill::{SkillLoader, DynamicSkill};
-use brain::tool::Tool;
+use aimaxxing_core::skill::{SkillLoader, DynamicSkill};
+use aimaxxing_core::tool::Tool;
 use std::path::PathBuf;
 
 #[tokio::test]
@@ -8,7 +8,7 @@ async fn test_wasm_skill_loading() {
     
     // Use absolute path to ensure we find the skills directory
     let mut base_path = std::env::current_dir().unwrap();
-    if base_path.ends_with("brain") {
+    if base_path.ends_with("aimaxxing_core") {
         base_path.pop();
     }
     base_path.push("skills");

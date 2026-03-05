@@ -1,5 +1,5 @@
-use brain::store::file::{FileStore, FileStoreConfig};
-use brain::rag::VectorStore;
+use aimaxxing_core::store::file::{FileStore, FileStoreConfig};
+use aimaxxing_core::rag::VectorStore;
 use std::sync::Arc;
 use std::time::Instant;
 

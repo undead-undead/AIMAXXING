@@ -5,7 +5,7 @@
 //!
 //! # Usage
 //! ```no_run
-//! use providers::{openai::OpenAI, retry::RetryProvider};
+//! use aimaxxing_providers::{openai::OpenAI, retry::RetryProvider};
 //!
 //! let provider = OpenAI::from_env().unwrap();
 //! let resilient = RetryProvider::new(provider)
@@ -19,7 +19,7 @@ use std::time::Duration;
 use tracing::{debug, warn};
 
 use crate::{Error, Result, Provider, StreamingResponse};
-use brain::agent::provider::ChatRequest;
+use aimaxxing_core::agent::provider::ChatRequest;
 
 /// Configuration for retry behavior.
 #[derive(Debug, Clone)]

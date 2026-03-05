@@ -1,5 +1,5 @@
 [package]
-name = "brain"
+name = "aimaxxing-core"
 description = "Core types and traits for the AIMAXXING AI Agent framework"
 version.workspace = true
 edition.workspace = true
@@ -95,7 +95,7 @@ quickjs = ["dep:rquickjs"]
 tempfile = "3.24.0"
 tokio-test = "0.4"
 clap = { version = "4.4", features = ["derive"] }
-engram = { workspace = true }
+aimaxxing-engram = { package = "aimaxxing-engram", workspace = true }
 
 [build-dependencies]
 tonic-build = { workspace = true }

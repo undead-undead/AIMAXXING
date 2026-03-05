@@ -1,4 +1,4 @@
-//! Utilities for LLM providers
+//! Utilities for LLM aimaxxing_providers
 
 use crate::{Error, Result};
 use bytes::{BufMut, BytesMut};
