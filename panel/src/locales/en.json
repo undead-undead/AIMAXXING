@@ -1,0 +1,126 @@
+{
+    "general": {
+        "loading": "Loading...",
+        "save": "Save",
+        "saving": "Saving...",
+        "system_notice": "System Notice",
+        "apply_changes": "Apply Changes",
+        "syncing": "Syncing...",
+        "updated_successfully": "Settings updated successfully!",
+        "failed_to_save": "Failed to save settings",
+        "error_saving": "Error saving settings"
+    },
+    "settings": {
+        "title": "System Console",
+        "subtitle": "Configure the core logic and identity of your autonomous agent.",
+        "system_notice_content": "Configuring these keys allows the AIMAXXING kernel to communicate with global LLM providers. Changes to the Server Port require a manual restart of the gateway process.",
+        "identity": {
+            "title": "Core Personality (Base Traits)",
+            "description": "The \"Biological\" base of the agent. These sliders define the innate temperamental range and communication tone.",
+            "conscientiousness": "Conscientiousness",
+            "neuroticism": "Neuroticism",
+            "role": "Agent Role",
+            "tone": "Tone"
+        },
+        "soul": {
+            "title": "Spirit & Knowledge (Soul Files)",
+            "description": "The \"Digital Life\" memory. AIMAXXING dynamically reads all .md files in this folder to inject modular intelligence.",
+            "active_path": "Active Soul Directory",
+            "info": "Add .md files to this folder to grant your agent new knowledge or complex behavioral instructions without restarting."
+        },
+        "providers": {
+            "title": "Provider Credentials",
+            "openai_key": "OpenAI Key",
+            "deepseek_key": "DeepSeek Key"
+        },
+        "environment": {
+            "title": "Environment",
+            "http_port": "HTTP Port",
+            "port_notice": "Port changes require a manual process restart."
+        }
+    },
+    "dashboard": {
+        "title": "Dashboard",
+        "subtitle": "AIMAXXING (Advanced Autonomous AI Agent Concept Law) Control Hub",
+        "configure": "Configure",
+        "search_placeholder": "Search skills...",
+        "available_skills": "Available Skills",
+        "metrics": {
+            "system_status": "System Status",
+            "operational": "Operational",
+            "loaded_skills": "Loaded Skills",
+            "active_sessions": "Active Sessions",
+            "active_tasks": "Active Tasks"
+        }
+    },
+    "skills": {
+        "title": "Skill Store",
+        "subtitle": "Expand your agent's capabilities by enabling specialized plugins.",
+        "searching": "Searching for available skills...",
+        "no_skills": "No skills found in your distribution.",
+        "status": {
+            "enabled": "Enabled",
+            "disabled": "Disabled"
+        }
+    },
+    "chat": {
+        "placeholder": "Type a message...",
+        "thinking": "Thinking...",
+        "reasoning": "Reasoning Process",
+        "tool_execution": "Tool Execution",
+        "tool_waiting": "Executing...",
+        "tool_result": "Result",
+        "new_chat": "Start a conversation with the agent.",
+        "history": "History",
+        "error_response": "Error: Failed to get response."
+    },
+    "sidebar": {
+        "dashboard": "Dashboard",
+        "skills": "Skill Store",
+        "chat": "Chat Assistant",
+        "settings": "Settings",
+        "logs": "Logs",
+        "system_online": "System Online",
+        "welcome": "Welcome back, <1>{{user}}</1>"
+    },
+    "persona": {
+        "title": "Soul & Identity",
+        "subtitle": "Sculpt your agent's personality traits and behavioral boundaries.",
+        "loading": "Syncing soul frequencies...",
+        "save_success": "Soul traits crystallized!",
+        "core_identity": "Core Identity",
+        "role_label": "Defined Role",
+        "role_placeholder": "e.g. Senior Security Engineer",
+        "tone_label": "Communication Tone",
+        "tone_placeholder": "e.g. Direct, professional, slightly witty",
+        "backstory_label": "Backstory (Optional)",
+        "backstory_placeholder": "Describe the agent's history and motivation...",
+        "ocean_traits": "OCEAN Traits",
+        "traits": {
+            "openness": "Openness (Creativity & Curiosity)",
+            "conscientiousness": "Conscientiousness (Reliability)",
+            "extraversion": "Extraversion (Social Energy)",
+            "agreeableness": "Agreeableness (Kindness)",
+            "neuroticism": "Neuroticism (Sensitivity)"
+        },
+        "trait_passive": "Passive",
+        "trait_extreme": "Extreme",
+        "syncing": "Syncing Mind...",
+        "deploy": "Deploy Personality",
+        "note_title": "Architect's Note",
+        "note_content": "Personality traits directly influence the LLM's system prompt and reasoning style. A high <strong>Openness</strong> score encourages creative problem solving, while high <strong>Conscientiousness</strong> ensures the agent adheres strictly to provided instructions and safety protocols."
+    },
+    "tasks": {
+        "title": "Scheduled Tasks",
+        "subtitle": "Manage automated cron jobs, heartbeat routines, and periodic workflows.",
+        "create_new": "New Task"
+    },
+    "logs": {
+        "title": "System Logs",
+        "subtitle": "Real-time stream of kernel events, skill executions, and network activity."
+    },
+    "terminal": {
+        "title": "Console Access",
+        "subtitle": "Direct command-line interface to the agent's runtime environment."
+    }
+}

@@ -1,0 +1,45 @@
+[package]
+name = "providers"
+description = "LLM provider implementations for the AIMAXXING AI Agent framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "../README.md"
+
+[features]
+default = ["full"]
+full = ["openai", "anthropic", "gemini", "deepseek", "openrouter", "moonshot", "groq", "ollama", "minimax", "llama_cpp"]
+llama_cpp = ["llama-cpp-2"]
+openai = []
+anthropic = []
+gemini = []
+deepseek = ["openai"]
+openrouter = ["openai"]
+moonshot = ["openai"]
+groq = ["openai"]
+ollama = ["openai"]
+minimax = ["openai"]
+
+
+[dependencies]
+brain = { path = "../core" }
+tokio = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+bytes = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+encoding_rs = "0.8"
+tokio-stream = "0.1"
+llama-cpp-2 = { version = "0.1", optional = true }
+
+[dev-dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+tokio-test = "0.4"
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true

@@ -1,0 +1,34 @@
+providers:
+  active_provider: null
+  openai_api_key: null
+  anthropic_api_key: null
+  gemini_api_key: null
+  deepseek_api_key: null
+  minimax_api_key: null
+  custom_providers: []
+server:
+  port: 3000
+  host: 0.0.0.0
+storage:
+  data_dir: null
+skills:
+  enabled:
+  - pdf
+  - pptx
+  - find-skills
+  - skill-creator
+  - smithery-ai-cli
+  - frontend-design
+  - browser_browse
+persona: null
+connectors:
+  telegram: null
+  discord: null
+  feishu: null
+  dingtalk: null
+  im: null
+knowledge:
+  enable_vector: true
+soul_path: null
+heartbeat_path: null
+agents: {}

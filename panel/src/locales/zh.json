@@ -1,0 +1,135 @@
+{
+    "general": {
+        "loading": "加载中...",
+        "save": "保存",
+        "saving": "保存中...",
+        "system_notice": "系统提示",
+        "apply_changes": "应用更改",
+        "syncing": "同步中...",
+        "updated_successfully": "设置已成功更新！",
+        "failed_to_save": "保存设置失败",
+        "error_saving": "保存设置时出错"
+    },
+    "settings": {
+        "title": "系统控制台",
+        "subtitle": "配置您的自主智能体的核心逻辑与身份认证。",
+        "system_notice_content": "配置 these 密钥允许 AIMAXXING 内核与全球 LLM 提供商通信。更改服务器端口需要手动重启网关进程。",
+        "identity": {
+            "title": "核心人格 (基底特质)",
+            "description": "智能体的“生物学”基底。这些滑块定义了与生俱来的气质范围和沟通基调。",
+            "conscientiousness": "勤勉度 (Conscientiousness)",
+            "neuroticism": "情绪波动 (Neuroticism)",
+            "role": "智能体角色",
+            "tone": "基调"
+        },
+        "soul": {
+            "title": "灵魂与阅历 (Soul Files)",
+            "description": "“数字生命”记忆。AIMAXXING 将动态读取此文件夹中的所有 .md 文件以注入模块化智能。",
+            "active_path": "当前激活的灵魂目录",
+            "info": "将 .md 文件添加到此文件夹，即可赋予您的智能体新知识或复杂的行为指令，无需重启。"
+        },
+        "providers": {
+            "title": "提供商凭证",
+            "openai_key": "OpenAI 密钥",
+            "deepseek_key": "DeepSeek 密钥"
+        },
+        "environment": {
+            "title": "运行环境",
+            "http_port": "HTTP 端口",
+            "port_notice": "端口更改需要手动重启进程。"
+        }
+    },
+    "dashboard": {
+        "title": "仪表盘",
+        "subtitle": "AIMAXXING (Advanced Autonomous AI Agent Concept Law) 实时控制台",
+        "configure": "配置",
+        "search_placeholder": "搜索技能...",
+        "available_skills": "可用技能",
+        "metrics": {
+            "system_status": "系统状态",
+            "operational": "运行中",
+            "loaded_skills": "已加载技能",
+            "active_sessions": "活跃会话",
+            "active_tasks": "活跃任务"
+        }
+    },
+    "skills": {
+        "title": "技能商店",
+        "subtitle": "通过启用专用插件扩展智能体的能力。",
+        "searching": "正在搜索可用技能...",
+        "no_skills": "您的分发版本中未找到任何技能。",
+        "status": {
+            "enabled": "已启用",
+            "disabled": "已禁用"
+        }
+    },
+    "chat": {
+        "new_chat": "开始与智能体对话。",
+        "thinking": "思考中...",
+        "placeholder": "请输入消息...",
+        "reasoning": "推理过程",
+        "tool_execution": "工具执行",
+        "tool_waiting": "执行中...",
+        "tool_result": "结果",
+        "history": "历史记录",
+        "error_response": "错误：无法获取响应。"
+    },
+    "sidebar": {
+        "dashboard": "仪表盘",
+        "skills": "技能商店",
+        "chat": "对话助手",
+        "settings": "设置",
+        "logs": "日志",
+        "system_online": "系统在线",
+        "welcome": "欢迎回来，<1>{{user}}</1>"
+    },
+    "persona": {
+        "title": "灵魂与核心身份",
+        "subtitle": "塑造智能体的个性特征和行为边界。",
+        "loading": "正在同步灵魂信号...",
+        "save_success": "灵魂特质已固化！",
+        "core_identity": "核心身份",
+        "role_label": "预设角色",
+        "role_placeholder": "例如：高级安全工程师",
+        "tone_label": "沟通语调",
+        "tone_placeholder": "例如：直接、专业、略带幽默",
+        "backstory_label": "背景故事（可选）",
+        "backstory_placeholder": "描述智能体的历史和动机...",
+        "ocean_traits": "OCEAN 性格特征",
+        "traits": {
+            "openness": "开放性 (创造力与好奇心)",
+            "conscientiousness": "尽责性 (可靠性)",
+            "extraversion": "外向性 (社交能量)",
+            "agreeableness": "宜人性 (友善度)",
+            "neuroticism": "神经质 (敏感度)"
+        },
+        "trait_passive": "被动",
+        "trait_extreme": "极端",
+        "syncing": "同步思维中...",
+        "deploy": "部署个性",
+        "note_title": "架构师注",
+        "note_content": "个性特征直接影响大模型的系统提示词和推理风格。高<strong>开放性</strong>鼓励创造性解决问题，而高<strong>尽责性</strong>确保智能体严格遵守指令和安全协议。"
+    },
+    "tasks": {
+        "title": "计划任务",
+        "subtitle": "管理自动化 Cron 作业、心跳例程和周期性工作流。",
+        "create_new": "新建任务"
+    },
+    "logs": {
+        "title": "系统日志",
+        "subtitle": "内核事件、技能执行和网络活动的实时流。"
+    },
+    "terminal": {
+        "title": "控制台",
+        "subtitle": "直接访问智能体运行时环境的命令行接口。"
+    },
+    "speech": {
+        "title": "语音解析与合成",
+        "openai_tts": "OpenAI 语音合成",
+        "local_model": "本地语音模型",
+        "model": "模型 ID",
+        "voice": "音色",
+        "path": "模型路径",
+        "enabled": "启用"
+    }
+}

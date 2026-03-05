@@ -1,0 +1,33 @@
+# Rust
+target/
+**/*.rs.bk
+**/*.rs.tmp
+
+# Database & Logs
+*.db
+*.db-shm
+*.db-wal
+*.log
+logs/
+data/*.db
+data/engram.db
+
+# Environments & Secrets
+.env
+.env.*
+vault/
+*.key
+*.pem
+secrets/
+
+# OS/IDEs
+.DS_Store
+.idea/
+.vscode/
+
+# Project Specific
+dist/
+build/
+bin/
+node_modules/
+docs/

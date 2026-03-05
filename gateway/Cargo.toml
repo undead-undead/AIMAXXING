@@ -1,0 +1,47 @@
+[package]
+name = "gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+brain = { workspace = true, default-features = false, features = ["http", "wasm", "cron"] }
+engram = { workspace = true, features = ["fts", "vector"] }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber.workspace = true
+tracing-appender = "0.2"
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json.workspace = true
+clap = { version = "4.4", features = ["derive"] }
+futures = { workspace = true }
+async-stream = "0.3"
+async-trait = { workspace = true }
+regex = "1.10"
+axum = { version = "0.8", features = ["ws"] }
+tokio-stream = "0.1.18"
+tower-http = { version = "0.6", features = ["cors", "trace", "fs", "timeout", "limit"] }
+providers = { path = "../providers" }
+parking_lot.workspace = true
+dashmap.workspace = true
+tokio-util = { version = "0.7" }
+chrono.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+tower = { version = "0.5" }
+moka = { version = "0.12", features = ["future"] }
+dialoguer = "0.11"
+colored = "2.2"
+indicatif = "0.17"
+serde_yaml_ng = { workspace = true }
+dotenv = "0.15"
+reqwest = { workspace = true }
+urlencoding = "2.1"
+
+[features]
+default = ["cron"]
+cron = []
+
+[dev-dependencies]
+tempfile = "3.25.0"
