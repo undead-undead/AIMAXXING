@@ -1,0 +1,3 @@
+# Ignore .agent folder from GitHub language statistics
+.agent/** linguist-vendored
+*.py linguist-detectable=false
