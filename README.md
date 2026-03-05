@@ -1,5 +1,5 @@
 # AIMAXXING
 
-![Work in Progress...](docs/core_architecture_preview.png)
+![AIMAXXING Logo](docs/logo.png)
 
 > **Note**: Work in progress...
