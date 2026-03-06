@@ -1,6 +1,6 @@
 # AIMAXXING Skills & Tools: Deep Dive Technical Documentation
 
-This document provides a comprehensive, technically deep analysis of every built-in Tool (Skill) implemented within the `/home/biubiuboy/aimaxxing/core/src/skills/tool` directory. 
+This document provides a comprehensive, technically deep analysis of every built-in Tool (Skill) implemented within the `/home/biubiuboy/aimaxxing/builtin-tools/src/tool` directory. 
 
 These tools are the effectors of the AIMAXXING framework, bridging the gap between LLM reasoning and real-world execution. Every tool implements the `Tool` async trait, utilizes `schemars` for automated JSON Schema sync, and is guarded by the execution `SecurityManager`.
 

@@ -2,7 +2,7 @@ use dashmap::DashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use async_trait::async_trait;
-use crate::agent::core::{AgentEvent, AgentEventData};
+use crate::agent::core::AgentEvent;
 
 /// Trait for observing agent events
 #[async_trait]

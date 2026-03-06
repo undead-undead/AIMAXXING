@@ -57,20 +57,20 @@ When a skill strictly requires Python (e.g., PyTorch, Numpy), the framework avoi
 The core framework is fully decoupled into 16 distinct sub-modules, each handling a specific domain of the AI lifecycle:
 
 - **`agent/`**: Brain & Identity. Contains `Agent`, `AgentBuilder`, Persona loading, and the short-term sliding conversational memory cache.
-- **`approval/`**: Human-In-The-Loop (HITL) system. Allows agents to pause execution and formally request human permission before performing destructive or critical actions (e.g., executing arbitrary code, moving money).
-- **`auth/`**: Security primitives. Manages API Key generation/validation, Bearer token parsing, and multi-tenant authentication strategies.
-- **`bus/`**: Async Event Pub/Sub system. A decoupled message router allowing agents to emit events (e.g., "SkillStarted", "MemoryUpdated") which the Gateway hooks into to push UI updates via WebSocket.
-- **`config/`**: Configuration parsers mapping the `aimaxxing.yaml` into strongly-typed Rust structs payload.
-- **`connectors/`**: Data ingestion conduits. Handlers for automatically scraping URLs, reading PDFs, and extracting markdown tables to feed into `engram`.
-- **`env/`**: Zero-config environment isolation. Manages the orchestration of `uv` and `pixi` for setting up perfectly pristine Python or Node.js project folders for skills.
-- **`hooks/`**: Global lifecycle interceptors. Functions allowing you to tap into the pre-prompt and post-response flow of any Agent generation globally.
-- **`infra/`**: Bare-metal services. Background cron-runners (`tokio-cron-scheduler`), database singletons, and core telemetry/tracing setups.
-- **`knowledge/`**: High-level bridging logic connecting the agent's real-time prompt generation to the `engram` RAG database for fetching context.
-- **`mcp/`**: Full implementation of the Anthropic Model Context Protocol. Acts as both an MCP Client (to consume standard corporate tools) and an MCP Server (to serve AIMAXXING tools externally).
-- **`runtime/`**: Language bridges. The exact FFI and subprocess bindings orchestrating QuickJS (`rquickjs`) and MicroPython.
-- **`security/`**: The defensive boundary. Houses `vessel.rs` (Resource quotas), the `LeakDetector` (PII/Secret redaction), and the `ShellFirewall` intent-analyzer mapping directly to macOS/Linux sandboxes.
-- **`session/`**: Multi-tenancy structures. Groups agents, specific chat threads, and scoped permissions under a single user's `SessionId`.
-- **`skills/`**: The tool implementations. From Filesystem management, native Shell execution, Web search (DuckDuckGo integration), to complex graphical plotting (`chart.rs`), this defines what an agent *can do*.
-- **`store/`**: Persistent state management linking to `redb` and `sqlite` to ensure agent chat histories survive system reboots seamlessly.
+- **`approval/`**: Human-In-The-Loop (HITL) system. Allows agents to pause execution and formally request human permission.
+- **`auth/`**: Core authentication traits (Implementations in standalone `auth` crate).
+- **`bus/`**: Async Event Pub/Sub system. A decoupled message router allowing agents to emit events.
+- **`config/`**: Configuration parsers mapping the `aimaxxing.yaml`.
+- **`connectors/`**: Data ingestion conduits (Logic moved to standalone `connectors` crate).
+- **`env/`**: Zero-config environment isolation (Integrated with `runtimes`).
+- **`hooks/`**: Global lifecycle interceptors.
+- **`infra/`**: Core infrastructure traits (Implementations in standalone `infra` crate: Gateway, Telegram, Notifications).
+- **`knowledge/`**: High-level bridging logic (Traits for `VectorStore` and `Embeddings`).
+- **`mcp/`**: Core MCP traits (Implementation in standalone `mcp` crate).
+- **`runtime/`**: Language bridges (Traits for QuickJS, Python; implementations in `runtimes` crate).
+- **`security/`**: Defensive boundary traits (Implementation in standalone `security` crate).
+- **`session/`**: Multi-tenancy structures.
+- **`skills/`**: Tool abstractions & Registry (Built-in tools moved to `builtin-tools` crate).
+- **`store/`**: Persistent state management linking to `redb` and `sqlite`.
 
 By segregating this deep sandboxing and provisioning logic into `core` (`brain`), AIMAXXING ensures that its foundational AI behavior remains portable, secure by default, and rigorously testable.

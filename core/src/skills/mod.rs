@@ -3,20 +3,9 @@ pub mod runtime;
 // sandbox module moved to 'security' crate
 pub mod tool;
 
-use dashmap::DashMap;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use tracing::info;
-
-use crate::agent::context::ContextInjector;
-use crate::agent::message::Message;
-use crate::error::{Error, Result};
-use crate::skills::tool::{Tool, ToolDefinition};
+use serde_json::Value;
+use std::collections::HashMap;
 
 /// Metadata extracted from a `SKILL.md` frontmatter
 /// Specification for a model dependency required by a skill.
