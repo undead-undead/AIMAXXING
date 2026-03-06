@@ -63,13 +63,13 @@ This document outlines the planned future developments for the AIMAXXING project
 ### 5.1 "Fat Core" Slimming
 - **Goal**: Transition `brain` crate from monolithic implementation to a pure abstraction layer while **preserving full-stack connectivity** (Bus/Traits).
 - **Tasks**:
-    - [ ] Extract `connectors/` into a standalone crate.
-    - [ ] Extract `security/` (Firewall + Sandbox) into a standalone crate.
-    - [ ] Extract `runtimes/` (Executors) into a standalone crate.
-    - [ ] Extract `skills/` (Engine + Built-in Tools) into a standalone crate.
-    - [ ] Extract `knowledge/`, `mcp/`, `auth/`, `infra/` into their respective crates.
+    - [x] Extract `connectors/` into a standalone crate.
+    - [x] Extract `security/` (Firewall + Sandbox) into a standalone crate.
+    - [x] Extract `runtimes/` (Executors) into a standalone crate.
+    - [x] Extract `skills/` (Engine + Built-in Tools) into a standalone crate.
+    - [x] Extract `knowledge/`, `mcp/`, `auth/`, `infra/` into their respective crates.
 
 ### 5.2 Filesystem Hygiene
-- [ ] Direct all runtime artifacts (`.log`, `.pid`, `.json` tokens) to a unified `/data` or `/var` directory.
-- [ ] Remove all persistent state files from the project root.
+- [x] Direct all runtime artifacts (`.log`, `.pid`, `.json` tokens) to a unified `/data` or `/var` directory.
+- [x] Remove all persistent state files from the project root.
 We welcome contributions to any of these areas! Please open an issue or PR on the respective module.
