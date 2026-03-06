@@ -44,7 +44,7 @@ pub struct SkillMetadata {
     pub script: Option<String>,
     /// Language or runtime for the script
     pub runtime: Option<String>,
-    /// Standard ClawHub metadata object
+    /// Standard Smithery metadata object
     #[serde(default)]
     pub metadata: Value,
     /// Kind of skill (e.g., 'tool', 'knowledge', 'agent')

@@ -50,6 +50,10 @@ mod onboard;
 #[command(name = "aimaxxing-gw")]
 #[command(about = "AIMAXXING AI Gateway - Lightweight tool execution engine", long_about = None)]
 struct Cli {
+    /// Custom data directory for models, logs, and runtimes
+    #[arg(long, env = "AIMAXXING_DATA_DIR")]
+    data_dir: Option<std::path::PathBuf>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -99,8 +103,33 @@ impl std::io::Write for ChannelWriter {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Default paths
-    let base_dir = std::env::current_dir()?;
+    let cli = Cli::parse();
+
+    // --- Smart Path Resolution (Portable vs. Standard) ---
+    let base_dir = if let Some(dir) = &cli.data_dir {
+        dir.clone()
+    } else {
+        // 1. Check for Portable Mode (local 'data' folder)
+        let exe_path = std::env::current_exe().unwrap_or_default();
+        let exe_dir = exe_path.parent().unwrap_or(std::path::Path::new("."));
+        let local_data = exe_dir.join("data");
+        
+        if local_data.exists() && local_data.is_dir() {
+            exe_dir.to_path_buf()
+        } else if exe_dir.join("aimaxxing.toml").exists() {
+             // 2. Check for explicit config (written by Setup.exe)
+             exe_dir.to_path_buf()
+        } else {
+            // 3. Standard Fallback to AppData/Local
+            dirs::data_local_dir()
+                .map(|d| d.join("aimaxxing"))
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
+        }
+    };
+
+    // Propagate the resolved data directory to the entire process and child runtimes
+    std::env::set_var("AIMAXXING_DATA_DIR", &base_dir);
+
     let logs_dir = base_dir.join("data").join("logs");
     if !logs_dir.exists() { let _ = std::fs::create_dir_all(&logs_dir); }
 
@@ -183,17 +212,29 @@ async fn main() -> Result<()> {
 
     info!("Logging initialized. Logs are stored in: {}", logs_dir.display());
 
-    let cli = Cli::parse();
+    // We already parsed it at the top
+    // let cli = Cli::parse();
 
     // Default paths
     let skills_path = base_dir.join("skills");
     let envs_path = base_dir.join("data").join("envs");
 
     let env_manager = Arc::new(brain::env::EnvManager::new(envs_path));
+    
+    // Phase 12-C: Auto-provision uv and pixi if missing (Zero-Admin)
+    let env_mgr_init = {
+        let em = Arc::clone(&env_manager);
+        tokio::spawn(async move {
+            let _ = em.ensure_uv().await;
+            let _ = em.ensure_pixi().await;
+        })
+    };
+
     let loader: Arc<SkillLoader> = Arc::new(SkillLoader::new(skills_path).with_env_manager(env_manager));
     let loader_init = {
         let l = Arc::clone(&loader);
         tokio::spawn(async move {
+            let _ = env_mgr_init.await;
             l.load_all().await
         })
     };

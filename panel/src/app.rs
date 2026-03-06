@@ -1901,7 +1901,7 @@ impl ClawPanel {
                         let resp = ui.add(
                             egui::TextEdit::singleline(&mut self.state.store_install_url)
                                 .hint_text(
-                                    "npx skills add https://github.com/aimaxxing-labs/skills --skill find-skills",
+                                    "https://github.com/user/repo or npx skills add <name>",
                                 )
                                 .desired_width(f32::INFINITY),
                         );

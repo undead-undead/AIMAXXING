@@ -304,14 +304,14 @@ impl Tool for ReadSkillDoc {
         }
     }
 }
-/// Tool to search and install skills from ClawHub using CLI (npm/pnpm/bun)
+/// Tool to search and install skills from Smithery using CLI (npm/pnpm/bun)
 #[cfg(feature = "http")]
-pub struct ClawHubTool {
+pub struct SmitheryTool {
     loader: Arc<SkillLoader>,
 }
 
 #[cfg(feature = "http")]
-impl ClawHubTool {
+impl SmitheryTool {
     pub fn new(loader: Arc<SkillLoader>) -> Self {
         Self { loader }
     }
@@ -319,15 +319,15 @@ impl ClawHubTool {
 
 #[cfg(feature = "http")]
 #[async_trait]
-impl Tool for ClawHubTool {
+impl Tool for SmitheryTool {
     fn name(&self) -> String {
-        "clawhub_manager".to_string()
+        "smithery_manager".to_string()
     }
 
     async fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: self.name(),
-            description: "Search and install new skills from the ClawHub.ai registry. Supports 'search' to find skills and 'install' to add them to your environment.".to_string(),
+            description: "Search and install new skills from the Smithery.ai registry. Supports 'search' to find skills and 'install' to add them to your environment.".to_string(),
             parameters: json!({
                 "type": "object",
                 "properties": {
@@ -364,17 +364,20 @@ impl Tool for ClawHubTool {
         }
         let args: Args = serde_json::from_str(arguments)?;
 
-        let manager = args.manager.as_deref().unwrap_or("npm");
+        let manager = args.manager.as_deref().unwrap_or({
+            if cfg!(windows) { "bun" } else { "npm" }
+        });
         let (cmd, base_args) = match manager {
-            "pnpm" => ("pnpm", vec!["dlx", "clawhub@latest"]),
-            "bun" => ("bunx", vec!["clawhub@latest"]),
-            _ => ("npx", vec!["clawhub@latest"]),
+            "pnpm" => ("pnpm", vec!["dlx", "smithery@latest"]),
+            "bun" => ("bunx", vec!["smithery@latest"]),
+            "pixi" => ("pixi", vec!["run", "bunx", "smithery@latest"]),
+            _ => ("npx", vec!["smithery@latest"]),
         };
 
         match args.action.as_str() {
             "search" => {
                 info!(
-                    "Searching ClawHub registry for: {} (via {})",
+                    "Searching Smithery registry for: {} (via {})",
                     args.query, manager
                 );
                 let output = tokio::process::Command::new(cmd)
@@ -388,7 +391,7 @@ impl Tool for ClawHubTool {
             }
             "install" => {
                 info!(
-                    "Installing skill from ClawHub: {} (via {})",
+                    "Installing skill from Smithery: {} (via {})",
                     args.query, manager
                 );
                 let output = tokio::process::Command::new(cmd)

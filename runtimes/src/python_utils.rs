@@ -16,21 +16,27 @@ pub fn venv_bin_dir() -> &'static str {
 /// The standard directory where aimaxxing caches runtimes.
 /// e.g. ~/.aimaxxing/runtimes/python/
 pub fn aimaxxing_python_cache_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".aimaxxing")
-        .join("runtimes")
-        .join("python")
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")))
+                .join("aimaxxing")
+        });
+    base.join("runtimes").join("python")
 }
 
 /// Per-skill venv cache directory.
 /// e.g. ~/.aimaxxing/venvs/<skill_name>/
 pub fn skill_venv_dir(skill_name: &str) -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".aimaxxing")
-        .join("venvs")
-        .join(skill_name)
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")))
+                .join("aimaxxing")
+        });
+    base.join("venvs").join(skill_name)
 }
 
 /// Attempts to find python binary.
@@ -77,12 +83,21 @@ pub async fn find_python() -> Option<PathBuf> {
 
 /// Check if `uv` is available on the system.
 pub async fn is_uv_available() -> bool {
-    Command::new("uv")
-        .arg("--version")
-        .output()
-        .await
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    if which::which("uv").is_ok() {
+        return true;
+    }
+    
+    // Check locally managed bin
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
+                .join("aimaxxing")
+        });
+    let managed = base.join("bin").join(if cfg!(windows) { "uv.exe" } else { "uv" });
+    
+    managed.exists()
 }
 
 /// Silently provision a standalone Python using `uv`.

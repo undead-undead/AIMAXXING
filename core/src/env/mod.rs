@@ -108,27 +108,46 @@ platforms = ["{}"]
 
         tokio::fs::write(env_path.join("pixi.toml"), pixi_toml).await?;
 
-        let pixi_bin = if which::which("pixi").is_ok() {
-            "pixi".to_string()
+        let pixi_bin = if let Ok(bin) = which::which("pixi") {
+            bin.to_string_lossy().to_string()
         } else {
-            let home = std::env::var("HOME").unwrap_or_default();
-            let path = format!("{}/.pixi/bin/pixi", home);
-            if std::path::Path::new(&path).exists() {
-                path
+            // Priority: Local bin folder next to persistence layer
+            let local_bin = self.base_storage.parent()
+                .map(|p| p.join("bin"))
+                .unwrap_or_else(|| self.base_storage.clone());
+            
+            let pixi_local = local_bin.join(if cfg!(target_os = "windows") { "pixi.exe" } else { "pixi" });
+            
+            if pixi_local.exists() {
+                pixi_local.to_string_lossy().to_string()
             } else {
-                return Err(Error::Internal(
-                    "pixi binary not found. Please install it first.".to_string(),
-                ));
+                // Fallback to standard install paths
+                let home = dirs::home_dir().unwrap_or_default();
+                let paths = if cfg!(target_os = "windows") {
+                    vec![
+                        home.join(".pixi").join("bin").join("pixi.exe"),
+                        dirs::data_local_dir().unwrap_or_default().join("pixi").join("bin").join("pixi.exe"),
+                    ]
+                } else {
+                    vec![home.join(".pixi").join("bin").join("pixi")]
+                };
+
+                paths.into_iter()
+                    .find(|p| p.exists())
+                    .map(|p| p.to_string_lossy().to_string())
+                    .ok_or_else(|| {
+                        Error::Internal("pixi binary not found. Please ensure it exists in the 'bin' folder or system PATH.".to_string())
+                    })?
             }
         };
 
-        let output = Command::new(pixi_bin.clone())
+        let output = Command::new(&pixi_bin)
             .arg("install")
             .arg("--manifest-path")
             .arg(env_path.join("pixi.toml"))
             .output()
             .await
-            .map_err(|e| Error::Internal(format!("Failed to run pixi install: {}", e)))?;
+            .map_err(|e| Error::Internal(format!("Failed to run pixi install at {}: {}", pixi_bin, e)))?;
 
         if !output.status.success() {
             let err = String::from_utf8_lossy(&output.stderr);
@@ -354,5 +373,85 @@ platforms = ["{}"]
         }
 
         Ok(())
+    }
+
+    /// Ensure `uv` is available, downloading it if necessary.
+    pub async fn ensure_uv(&self) -> Result<PathBuf> {
+        if let Ok(bin) = which::which("uv") {
+            return Ok(bin);
+        }
+
+        let bin_dir = self.base_storage.parent()
+            .map(|p| p.join("bin"))
+            .unwrap_or_else(|| self.base_storage.clone());
+        
+        if !bin_dir.exists() {
+            tokio::fs::create_dir_all(&bin_dir).await?;
+        }
+
+        let uv_bin = bin_dir.join(if cfg!(windows) { "uv.exe" } else { "uv" });
+        if uv_bin.exists() {
+            return Ok(uv_bin);
+        }
+
+        info!("uv not found. Downloading standalone uv binary...");
+        
+        let url = if cfg!(target_os = "windows") {
+            "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip"
+        } else if cfg!(target_os = "macos") {
+            if cfg!(target_arch = "aarch64") {
+                "https://github.com/astral-sh/uv/releases/latest/download/uv-aarch64-apple-darwin.tar.gz"
+            } else {
+                "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-apple-darwin.tar.gz"
+            }
+        } else {
+            "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz"
+        };
+
+        self.download_file(url, &uv_bin).await?;
+        
+        Ok(uv_bin)
+    }
+
+    /// Ensure `pixi` is available, downloading it if necessary.
+    pub async fn ensure_pixi(&self) -> Result<PathBuf> {
+        if let Ok(bin) = which::which("pixi") {
+            return Ok(bin);
+        }
+
+        let bin_dir = self.base_storage.parent()
+            .map(|p| p.join("bin"))
+            .unwrap_or_else(|| self.base_storage.clone());
+
+        let pixi_bin = bin_dir.join(if cfg!(windows) { "pixi.exe" } else { "pixi" });
+        if pixi_bin.exists() {
+            return Ok(pixi_bin);
+        }
+
+        info!("pixi not found. Downloading standalone pixi binary...");
+        
+        let url = if cfg!(target_os = "windows") {
+            "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-pc-windows-msvc.exe"
+        } else if cfg!(target_os = "macos") {
+            if cfg!(target_arch = "aarch64") {
+                "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-aarch64-apple-darwin"
+            } else {
+                "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-apple-darwin"
+            }
+        } else {
+            "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-unknown-linux-musl"
+        };
+
+        self.download_file(url, &pixi_bin).await?;
+        
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = tokio::fs::metadata(&pixi_bin).await?.permissions();
+            perms.set_mode(0o755);
+            tokio::fs::set_permissions(&pixi_bin, perms).await?;
+        }
+
+        Ok(pixi_bin)
     }
 }

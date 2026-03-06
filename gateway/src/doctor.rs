@@ -13,7 +13,9 @@ pub async fn run_doctor() -> anyhow::Result<()> {
         ("Native Sandbox", check_sandbox as fn() -> anyhow::Result<()>),
         ("Vector DB Path", check_vectordb as fn() -> anyhow::Result<()>),
         ("RAG Engine Mode", check_rag_mode as fn() -> anyhow::Result<()>),
-        ("ClawHub ENV", check_env as fn() -> anyhow::Result<()>),
+        ("Pixi Environment", check_pixi as fn() -> anyhow::Result<()>),
+        ("JS Runtime (Node/Bun)", check_node as fn() -> anyhow::Result<()>),
+        ("Smithery ENV", check_env as fn() -> anyhow::Result<()>),
     ];
 
     let pb = ProgressBar::new(steps.len() as u64);
@@ -58,6 +60,15 @@ pub async fn run_doctor() -> anyhow::Result<()> {
             println!("- Create a .env file or config.toml with required API keys.");
             println!("  Run `aimaxxing-gateway onboard` to generate one.");
         }
+        if check_pixi().is_err() {
+            #[cfg(target_os = "windows")]
+            println!("- Pixi missing. Install with: `iwr -useb https://pixi.sh/install.ps1 | iex` (PowerShell)");
+            #[cfg(not(target_os = "windows"))]
+            println!("- Pixi missing. Install with: `curl -fsSL https://pixi.sh/install.sh | bash` (Bash)");
+        }
+        if check_node().is_err() {
+            println!("- JS Runtime missing. We recommend installing Bun for native performance: `powershell -c \"irm https://bun.sh/install.ps1 | iex\"` (Windows)");
+        }
     } else {
         println!("\n{}", "System is ready for takeoff! 🚀".bold().green());
     }
@@ -68,8 +79,10 @@ pub async fn run_doctor() -> anyhow::Result<()> {
 fn check_rag_mode() -> anyhow::Result<()> {
     // Engram uses provider APIs for embeddings, no local models needed
     // Check if the data directory and DB are accessible
-    let current_dir = std::env::current_dir()?;
-    let db_path = current_dir.join("data").join("engram.db");
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    let db_path = base.join("data").join("engram.db");
     if db_path.exists() {
         Ok(())
     } else {
@@ -115,8 +128,10 @@ fn check_sandbox() -> anyhow::Result<()> {
 
 fn check_vectordb() -> anyhow::Result<()> {
     // Check if data directory is writable
-    let current_dir = std::env::current_dir()?;
-    let data_dir = current_dir.join("data");
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    let data_dir = base.join("data");
     
     if !data_dir.exists() {
         std::fs::create_dir_all(&data_dir)?;
@@ -151,10 +166,57 @@ fn check_env() -> anyhow::Result<()> {
     }
 
     // Also check config file
-    let config_path = std::env::current_dir()?.join("aimaxxing.yaml");
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    let config_path = base.join("aimaxxing.yaml");
     if config_path.exists() {
          return Ok(());
     }
 
     Err(anyhow::anyhow!("No API keys found in ENV or aimaxxing.yaml"))
+}
+
+fn check_pixi() -> anyhow::Result<()> {
+    if which::which("pixi").is_ok() {
+        return Ok(());
+    }
+    
+    // Check locally managed bin
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
+                .join("aimaxxing")
+        });
+    let managed = base.join("bin").join(if cfg!(windows) { "pixi.exe" } else { "pixi" });
+        
+    if managed.exists() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("pixi binary not found in PATH or standard locations"))
+    }
+}
+
+fn check_node() -> anyhow::Result<()> {
+    if which::which("bun").is_ok() || which::which("node").is_ok() {
+        return Ok(());
+    }
+    
+    // Check locally managed bin
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
+                .join("aimaxxing")
+        });
+    let managed_bun = base.join("bin").join(if cfg!(windows) { "bun.exe" } else { "bun" });
+
+    if managed_bun.exists() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Neither node nor bun found in PATH"))
+    }
 }
