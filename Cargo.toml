@@ -84,7 +84,6 @@ serde_yaml_ng = "0.10"
 rust_decimal = { version = "1.36", features = ["serde-float"] }
 rust_decimal_macros = "1.36"
 tokio-cron-scheduler = "0.13"
-rusqlite = { version = "0.31", features = ["bundled"] }
 
 # gRPC
 tonic = "0.12"
@@ -97,3 +96,5 @@ unsafe_code = "warn"
 [workspace.lints.clippy]
 unwrap_used = "warn"
 expect_used = "warn"
+# [Build Config]
+

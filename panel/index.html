@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>AIMAXXING // Web Control Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="assets/NotoSansSC-Regular.subset.ttf">
+    <style>
+        html {
+            /* Remove touch-delay from context-menu */
+            touch-action: none;
+        }
+
+        body {
+            /* Light mode background */
+            background: white;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                /* Dark mode background */
+                background: #1b1b1b;
+            }
+        }
+
+        /* Allow canvas to fill entire window */
+        html,
+        body {
+            overflow: hidden;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Position the canvas */
+        canvas {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 0%;
+            left: 0%;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="the_canvas_id"></canvas>
+</body>
+
+</html>

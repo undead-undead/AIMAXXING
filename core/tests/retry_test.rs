@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use brain::agent::multi_agent::{Coordinator, AgentRole};
-use brain::agent::scheduler::{Scheduler, JobSchedule, JobPayload, SqliteCronStore};
+use brain::agent::scheduler::{Scheduler, JobSchedule, JobPayload, RedbCronStore};
 use chrono::Utc;
 
 #[tokio::test]
@@ -12,7 +12,7 @@ async fn test_cron_retry() {
     let _ = std::fs::remove_file(db_path);
     
     let coordinator = Arc::new(Coordinator::new());
-    let store = Box::new(SqliteCronStore::new(db_path).unwrap());
+    let store = Box::new(RedbCronStore::new(db_path).unwrap());
     let scheduler = Scheduler::new(Arc::downgrade(&coordinator), Some(store)).await;
     
     // Start the scheduler

@@ -12,18 +12,18 @@ use std::time::Duration;
 use engram::EngramStore;
 
 /// Implementation of SessionStore using Engram-KV backend.
-pub struct SqliteSessionStore {
+pub struct EngramSessionStore {
     store: Arc<EngramStore>,
 }
 
-impl SqliteSessionStore {
+impl EngramSessionStore {
     pub fn new(store: Arc<EngramStore>) -> Self {
         Self { store }
     }
 }
 
 #[async_trait]
-impl SessionStore for SqliteSessionStore {
+impl SessionStore for EngramSessionStore {
     async fn save(&self, id: &str, messages: &[Message]) -> brain::error::Result<()> {
         let data = serde_json::to_string(messages)
             .map_err(|e| brain::error::Error::Internal(format!("Failed to serialize session: {}", e)))?;
@@ -56,7 +56,7 @@ impl SessionStore for SqliteSessionStore {
 /// Bridges the MessageBus with the Coordinator (Swarm).
 /// 
 /// It listens for InboundMessages, routes them through the Swarm,
-/// maintains session history (with LRU cache and SQLite persistence),
+/// maintains session history (with LRU cache and persistent KV storage),
 /// and publishes responses as OutboundMessages.
 pub struct AgentBridge {
     coordinator: Arc<Coordinator>,

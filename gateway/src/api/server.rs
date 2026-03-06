@@ -198,7 +198,7 @@ pub async fn start_server(
     
     // Start Agent Bridge (Agent <-> Bus)
     if coordinator.get(&AgentRole::Assistant).is_some() {
-        let session_store = Arc::new(crate::api::bridge::SqliteSessionStore::new(knowledge.engram_store()));
+        let session_store = Arc::new(crate::api::bridge::EngramSessionStore::new(knowledge.engram_store()));
         let bridge = Arc::new(AgentBridge::new(coordinator.clone(), bus.clone(), session_store.clone()));
         
         let bridge_clone = bridge.clone();

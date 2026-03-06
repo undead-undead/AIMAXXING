@@ -1,4 +1,4 @@
-use brain::agent::scheduler::{Scheduler, JobSchedule, JobPayload, SqliteCronStore};
+use brain::agent::scheduler::{Scheduler, JobSchedule, JobPayload, RedbCronStore};
 use brain::agent::multi_agent::{Coordinator, AgentRole};
 use std::sync::{Arc, Weak};
 use uuid::Uuid;
@@ -10,7 +10,7 @@ async fn test_cron_persistence() {
     let db_path = db_file.path().to_str().unwrap().to_string();
     
     let coordinator = Arc::new(Coordinator::new());
-    let store = Box::new(SqliteCronStore::new(&db_path).unwrap());
+    let store = Box::new(RedbCronStore::new(&db_path).unwrap());
     
     // 1. Create scheduler and add a job
     let scheduler = Scheduler::new(Arc::downgrade(&coordinator), Some(store)).await;
@@ -34,7 +34,7 @@ async fn test_cron_persistence() {
     drop(scheduler);
     
     // 4. Create new scheduler with same store
-    let store2 = Box::new(SqliteCronStore::new(&db_path).unwrap());
+    let store2 = Box::new(RedbCronStore::new(&db_path).unwrap());
     let scheduler2 = Scheduler::new(Arc::downgrade(&coordinator), Some(store2)).await;
     scheduler2.load_jobs().await.unwrap();
     
@@ -48,7 +48,7 @@ async fn test_cron_persistence() {
     assert_eq!(scheduler2.list_jobs().len(), 0);
     
     // 7. Restart again to verify it's gone from DB
-    let store3 = Box::new(SqliteCronStore::new(&db_path).unwrap());
+    let store3 = Box::new(RedbCronStore::new(&db_path).unwrap());
     let scheduler3 = Scheduler::new(Arc::downgrade(&coordinator), Some(store3)).await;
     scheduler3.load_jobs().await.unwrap();
     assert_eq!(scheduler3.list_jobs().len(), 0, "Job should be gone from persistence");

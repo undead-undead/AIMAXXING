@@ -43,11 +43,9 @@ mod palette {
 
 // ── ClawPanel struct ─────────────────────────────────────────────────────────
 
-pub struct ClawPanel {
-    state: AppState,
     #[cfg(not(target_arch = "wasm32"))]
     rt: tokio::runtime::Handle,
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(target_os = "windows")]
     tray_icon: Option<tray_icon::TrayIcon>,
 }
 
@@ -112,22 +110,20 @@ impl ClawPanel {
         // Sub-phase 4: Font setup (P11)
         Self::setup_fonts(&cc.egui_ctx);
 
-        let mut panel = Self {
-            state: AppState::new(),
             #[cfg(not(target_arch = "wasm32"))]
             rt,
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(target_os = "windows")]
             tray_icon: None,
         };
 
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(target_os = "windows")]
         panel.init_tray();
-        panel.trigger_refresh(&cc.egui_ctx);
 
+        panel.trigger_refresh(&cc.egui_ctx);
         panel
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(target_os = "windows")]
     fn init_tray(&mut self) {
         use tray_icon::{Icon, TrayIconBuilder};
 
@@ -156,6 +152,8 @@ impl ClawPanel {
             }
         }
     }
+
+
 
     pub fn state_mut(&mut self) -> &mut AppState {
         &mut self.state
@@ -303,7 +301,7 @@ impl eframe::App for ClawPanel {
         }
 
         // Handle Tray Icon Events
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(target_os = "windows")]
         {
             if let Ok(event) = tray_icon::TrayIconEvent::receiver().try_recv() {
                 use tray_icon::TrayIconEvent;
