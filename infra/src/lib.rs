@@ -8,6 +8,6 @@ pub mod prefix_cache;
 pub mod pricing;
 pub mod telegram;
 
-pub use notifications::NotificationManager;
-pub use observable::{AgentObserver, Observable};
+
+pub use observable::AgentObserver;
 pub use telegram::TelegramNotifier;

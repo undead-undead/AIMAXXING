@@ -32,7 +32,6 @@ use std::fs;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::{
-    compression::CompressionLayer,
     cors::{Any, CorsLayer},
 };
 use tracing::info;
@@ -166,9 +165,6 @@ impl Gateway {
             );
         }
 
-        // Add compression
-        app = app.layer(CompressionLayer::new());
-
         let listener = TcpListener::bind(addr).await
             .map_err(|e| brain::error::Error::Internal(format!("Failed to bind: {}", e)))?;
 
@@ -191,22 +187,22 @@ impl Gateway {
         // Spawn outbound bridge task (Bus -> Gateway)
         let outbound_state = self.state.clone();
         tokio::spawn(async move {
+            let mut rx = outbound_state.bus.subscribe_outbound();
             loop {
-                match outbound_state.bus.consume_outbound().await {
+                match rx.recv().await {
                     Ok(msg) => {
-                        // Check if this is a fulfillment for a sync request
-                        let fulfilled = if let Some(ref req_id) = msg.request_id {
-                            outbound_state.fulfill_response(req_id, msg.clone())
-                        } else {
-                            false
-                        };
+                        // Forward message to all clients
+                        let is_cancelled = outbound_state.fulfill_response(&msg.chat_id, msg.clone());
 
                         // Broadcast to all connected clients (except maybe the sync requester if needed, but for now broadcast all)
                         outbound_state.broadcast(ServerMessage::Outbound { message: msg });
                     }
-                    Err(e) => {
-                        tracing::error!("Message bus outbound error: {}", e);
-                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!("Gateway outbound receiver lagged by {} messages", n);
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        tracing::error!("Gateway outbound receiver closed, stopping worker");
+                        break;
                     }
                 }
             }

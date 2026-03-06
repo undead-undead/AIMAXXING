@@ -84,8 +84,7 @@ pub async fn chat_completions(
     let prompt = req.messages.last().map(|m| m.content.clone()).unwrap_or_default();
     
     // model name is used as the target agent name or channel
-    let inbound = InboundMessage::new("openai", "api_user", &req.model, prompt)
-        .with_request_id(&request_id);
+    let inbound = InboundMessage::new("openai", "api_user", &request_id, prompt);
 
     // 3. Register for response
     let rx = state.register_response(request_id.clone());

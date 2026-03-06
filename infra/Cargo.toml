@@ -27,6 +27,7 @@ futures = { workspace = true }
 sysinfo = "0.34"
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-appender = { workspace = true }
+console-subscriber = "0.5.0"
 
 [lints]
 workspace = true

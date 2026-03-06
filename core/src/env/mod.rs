@@ -69,6 +69,21 @@ impl EnvManager {
                     pixi_deps.push("gcc_linux-64".to_string());
                     pixi_deps.push("gxx_linux-64".to_string());
                 },
+                "bash" | "sh" | "shell" => {
+                    if cfg!(target_os = "windows") {
+                        pixi_deps.push("m2-bash".to_string());
+                        // Optional: pull in m2-coreutils or m2-grep to give a full environment
+                        pixi_deps.push("m2-coreutils".to_string());
+                        pixi_deps.push("m2-grep".to_string());
+                        pixi_deps.push("m2-sed".to_string());
+                        pixi_deps.push("m2-gawk".to_string());
+                        pixi_deps.push("m2-curl".to_string());
+                    } else {
+                        // On Linux/Mac, rely on system bash implicitly, no conda pkg usually needed,
+                        // but if they really requested bash via conda we can add `bash`
+                        pixi_deps.push("bash".to_string());
+                    }
+                },
                 _ => pixi_deps.push(d.clone()),
             }
         }
@@ -272,68 +287,70 @@ platforms = ["{}"]
         Ok(())
     }
 
-    /// Compute SHA256 checksum of a file using the system's sha256sum / shasum.
+    /// Compute SHA256 checksum of a file natively using the sha2 crate.
     async fn compute_sha256(&self, path: &Path) -> Result<String> {
-        // Try sha256sum (Linux) first, then shasum (macOS)
-        let (program, args): (&str, Vec<&str>) = if which::which("sha256sum").is_ok() {
-            ("sha256sum", vec![])
-        } else if which::which("shasum").is_ok() {
-            ("shasum", vec!["-a", "256"])
-        } else {
-            return Err(Error::Internal(
-                "Neither sha256sum nor shasum found on system".to_string(),
-            ));
-        };
+        use sha2::{Digest, Sha256};
+        use tokio::fs::File;
+        use tokio::io::AsyncReadExt;
 
-        let mut cmd = Command::new(program);
-        for arg in &args {
-            cmd.arg(arg);
-        }
-        cmd.arg(path);
-
-        let output = cmd
-            .output()
+        let mut file = File::open(path)
             .await
-            .map_err(|e| Error::Internal(format!("Failed to compute checksum: {}", e)))?;
+            .map_err(|e| Error::Internal(format!("Failed to open file for checksum: {}", e)))?;
+        
+        let mut hasher = Sha256::new();
+        let mut buffer = [0; 8192];
 
-        if !output.status.success() {
-            return Err(Error::Internal("sha256 computation failed".to_string()));
+        loop {
+            let bytes_read = file
+                .read(&mut buffer)
+                .await
+                .map_err(|e| Error::Internal(format!("Failed to read file for checksum: {}", e)))?;
+            
+            if bytes_read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..bytes_read]);
         }
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        // Output format: "hash  filename\n"
-        let hash = stdout.split_whitespace().next().unwrap_or("").to_string();
-
-        Ok(hash)
+        let result = hasher.finalize();
+        Ok(format!("{:x}", result))
     }
 
-    /// Check if there's enough disk space for a model download.
+    /// Check if there's enough disk space for a model download using sysinfo.
     async fn check_disk_space(&self, path: &Path, required_mb: u64) -> Result<()> {
-        // Use df to check available space
-        let output = Command::new("df")
-            .arg("-m") // megabytes
-            .arg(path)
-            .output()
-            .await
-            .map_err(|e| Error::Internal(format!("Failed to check disk space: {}", e)))?;
+        use sysinfo::Disks;
 
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            // Parse the 'Available' column (4th field of the 2nd line)
-            if let Some(line) = stdout.lines().nth(1) {
-                let fields: Vec<&str> = line.split_whitespace().collect();
-                if fields.len() >= 4 {
-                    if let Ok(available_mb) = fields[3].parse::<u64>() {
-                        if available_mb < required_mb + 100 {
-                            // 100MB buffer
-                            return Err(Error::Internal(format!(
-                                "Insufficient disk space: {} MB available, {} MB required for model",
-                                available_mb, required_mb
-                            )));
-                        }
-                    }
-                }
+        let required_bytes = required_mb * 1024 * 1024;
+        let required_with_buffer = required_bytes + (100 * 1024 * 1024); // 100MB buffer
+        
+        // sysinfo needs to enumerate disks
+        let disks = Disks::new_with_refreshed_list();
+        
+        // Find the disk containing the path
+        let mut target_disk = None;
+        let mut longest_match = 0;
+        
+        let path_str = path.to_string_lossy().to_string();
+        
+        for disk in &disks {
+            let mount_point = disk.mount_point().to_string_lossy().to_string();
+            if path_str.starts_with(&mount_point) && mount_point.len() > longest_match {
+                longest_match = mount_point.len();
+                target_disk = Some(disk);
             }
+        }
+        
+        if let Some(disk) = target_disk {
+            let available_bytes = disk.available_space();
+            if available_bytes < required_with_buffer {
+                return Err(Error::Internal(format!(
+                    "Insufficient disk space: {} MB available, {} MB required for model",
+                    available_bytes / 1024 / 1024,
+                    required_mb
+                )));
+            }
+        } else {
+            warn!("Could not determine mount point for {}, skipping free space check.", path.display());
         }
 
         Ok(())

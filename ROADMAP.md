@@ -73,3 +73,32 @@ This document outlines the planned future developments for the AIMAXXING project
 - [x] Direct all runtime artifacts (`.log`, `.pid`, `.json` tokens) to a unified `/data` or `/var` directory.
 - [x] Remove all persistent state files from the project root.
 We welcome contributions to any of these areas! Please open an issue or PR on the respective module.
+
+---
+
+## Phase 6: Native Windows Experience (CRITICAL TRANSITION)
+
+*Constraint*: The entire AIMAXXING engine, including gateways, panels, and all spawned agent sandboxes, **MUST execute in user-space without Windows Administrator (`UAC`) privileges**.
+
+### 6.1 Unified Zero-Admin Runtimes (QuickJS + Pixi `m2-bash`)
+- **Goal**: Sever reliance on Git Bash or WSL by promoting embedded QuickJS, and safely containerizing legacy bash via Pixi's MSYS2 environment.
+- **Tasks**:
+    - [x] Prioritize embedded `QuickJS` for cross-platform hook scripts (`JsHook`) in `core/src/hooks/engine.rs` instead of relying on `ShellHook`.
+    - [x] For `SKILL.md` scripts that strictly require `runtime: bash`, update `EnvManager` to automatically provision Pixi's `m2-bash` package (a portable MSYS2 environment). This guarantees 100% bug-free upstream bash compatibility without parsing errors.
+    - [x] Bypass system bash for Python-based skills on Windows: intercept executions and route them directly to the `uv` virtual environment managed by `Pixi` in `core/src/env/mod.rs`.
+    - [x] Ensure Windows paths (`\\?\` or C:\`) are precisely handled during bash context and `uv` environment provisioning in `runtimes/src/python_utils.rs`.
+
+### 6.2 Cross-Platform Command Equivalents
+- **Goal**: Refactor hardcoded Linux commands in built-in tools to use cross-platform Rust equivalents or OS-aware branches.
+- **Tasks**:
+    - [x] `core/src/env/mod.rs`: Replace `df -m` with pure-Rust `sysinfo` crate for disk space checking.
+    - [x] `core/src/env/mod.rs`: Replace `sha256sum` / `shasum` with pure-Rust `sha2` crate for model checksums.
+    - [x] `builtin-tools/src/tool/notifier.rs`: Ensure Windows 11 Toast Notifications are supported (e.g., using `winrt-notification` or `notify-rust` with Windows features enabled).
+    - [x] `core/src/hooks/engine.rs`: Refactor `ShellHook` which hardcodes `Command::new("sh").arg("-c")` to use PowerShell or `cmd.exe` on Windows.
+    - [x] `gateway/src/api/server.rs`: Update `handle_terminal_socket` which currently hardcodes `/bin/bash` to launch `powershell.exe` on Windows.
+
+### 6.3 Developer Experience & Tooling
+- **Goal**: Provide an accessible entry point for Windows developers.
+- **Tasks**:
+    - [x] Create `install.ps1` for native Windows environment setup (matching `install.sh`).
+    - [x] Create `build_all.ps1` for compilation.

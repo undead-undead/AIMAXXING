@@ -131,6 +131,8 @@ impl MockProvider {
 #[cfg(test)]
 #[async_trait]
 impl Provider for MockProvider {
+    fn metadata() -> crate::agent::provider::ProviderMetadata { crate::agent::provider::ProviderMetadata { id: "mock".to_string(), name: "Mock".to_string(), description: "Mock Provider".to_string(), icon: "".to_string(), fields: vec![], capabilities: vec![], preferred_models: vec![] } }
+
     async fn stream_completion(&self, _request: ChatRequest) -> Result<StreamingResponse> {
         Ok(crate::agent::streaming::MockStreamBuilder::new()
             .message(&self.response)

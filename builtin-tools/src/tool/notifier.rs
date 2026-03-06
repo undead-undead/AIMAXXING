@@ -120,9 +120,9 @@ async fn detect_channels(args: &NotifierArgs) -> serde_json::Value {
                 "deps": "TELEGRAM_BOT_TOKEN env var or bot_token param",
             },
             "desktop": {
-                "available": has_notify_send || has_osascript,
-                "tool": if has_notify_send { "notify-send" } else if has_osascript { "osascript" } else { "none" },
-                "deps": "notify-send (Linux) or osascript (macOS)",
+                "available": cfg!(target_os = "windows") || has_notify_send || has_osascript,
+                "tool": if cfg!(target_os = "windows") { "notify-rust" } else if has_notify_send { "notify-send" } else if has_osascript { "osascript" } else { "none" },
+                "deps": "notify-rust (Windows), notify-send (Linux) or osascript (macOS)",
             },
             "sms": {
                 "available": std::env::var("TWILIO_SID").is_ok() || args.twilio_sid.is_some(),
@@ -229,6 +229,19 @@ async fn send_telegram(args: &NotifierArgs) -> anyhow::Result<serde_json::Value>
 
 // --- Desktop notification ---
 async fn send_desktop(args: &NotifierArgs) -> anyhow::Result<serde_json::Value> {
+    #[cfg(target_os = "windows")]
+    {
+        use notify_rust::Notification;
+        let mut notif = Notification::new();
+        notif.summary(&args.title).body(&args.message);
+        
+        match notif.show() {
+            Ok(_) => return Ok(json!({"success": true, "channel": "desktop", "tool": "notify-rust"})),
+            Err(e) => return Ok(json!({"error": format!("Windows notification failed: {}", e), "channel": "desktop"}))
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
     if which::which("notify-send").is_ok() {
         let mut cmd_args = vec![];
         if !args.title.is_empty() {

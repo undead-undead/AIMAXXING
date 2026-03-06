@@ -43,6 +43,8 @@ mod palette {
 
 // ── ClawPanel struct ─────────────────────────────────────────────────────────
 
+pub struct ClawPanel {
+    state: AppState,
     #[cfg(not(target_arch = "wasm32"))]
     rt: tokio::runtime::Handle,
     #[cfg(target_os = "windows")]
@@ -110,6 +112,8 @@ impl ClawPanel {
         // Sub-phase 4: Font setup (P11)
         Self::setup_fonts(&cc.egui_ctx);
 
+        let mut panel = Self {
+            state: AppState::new(),
             #[cfg(not(target_arch = "wasm32"))]
             rt,
             #[cfg(target_os = "windows")]

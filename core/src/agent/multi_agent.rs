@@ -426,6 +426,11 @@ mod tests {
         fn persona(&self) -> Option<Arc<parking_lot::RwLock<Option<Persona>>>> {
             None
         }
+
+        fn events(&self) -> tokio::sync::broadcast::Receiver<crate::agent::core::AgentEvent> {
+            let (_, rx) = tokio::sync::broadcast::channel(1);
+            rx
+        }
     }
 
     #[tokio::test]

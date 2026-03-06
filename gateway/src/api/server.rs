@@ -1287,7 +1287,12 @@ async fn terminal_handler(
 
 async fn handle_terminal_socket(mut socket: WebSocket) {
     // Simple shell bridge
+    #[cfg(target_os = "windows")]
+    let mut cmd = tokio::process::Command::new("powershell.exe");
+    
+    #[cfg(not(target_os = "windows"))]
     let mut cmd = tokio::process::Command::new("/bin/bash");
+    
     cmd.stdin(std::process::Stdio::piped());
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());

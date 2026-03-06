@@ -200,7 +200,14 @@ impl Hook for ShellHook {
     async fn execute(&self, event: &HookEvent) -> anyhow::Result<HookResult> {
         use tokio::process::Command;
 
+        #[cfg(target_os = "windows")]
+        let mut cmd = Command::new("cmd");
+        #[cfg(target_os = "windows")]
+        cmd.arg("/C").arg(&self.command);
+
+        #[cfg(not(target_os = "windows"))]
         let mut cmd = Command::new("sh");
+        #[cfg(not(target_os = "windows"))]
         cmd.arg("-c").arg(&self.command);
 
         // Pass event data as environment variables

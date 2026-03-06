@@ -1,4 +1,5 @@
 use super::*;
+use brain::security::SecurityHandler;
 
 #[test]
 fn test_injection_detection() {

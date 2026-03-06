@@ -257,6 +257,7 @@ mod tests {
             clients: 5,
             uptime_secs: 3600,
             agents: vec![],
+            connected_clients: vec![], // Added this line as per instruction
             system: None,
             timestamp: Utc::now(),
         });

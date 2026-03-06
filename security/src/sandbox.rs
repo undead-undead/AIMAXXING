@@ -307,7 +307,7 @@ impl SkillRuntime for NativeShellRuntime {
         config: &SkillExecutionConfig,
         env_manager: Option<&std::sync::Arc<brain::env::EnvManager>>,
     ) -> brain::error::Result<std::process::Output> {
-        let interpreter = metadata.runtime.as_deref().unwrap_or("bash");
+        let mut interpreter = metadata.runtime.as_deref().unwrap_or("bash").to_string();
         
         // Resolve script path
         let script_file = metadata.script.as_ref().ok_or_else(|| {
@@ -322,22 +322,43 @@ impl SkillRuntime for NativeShellRuntime {
         let mut env_prefix = None;
         let mut models_path = None;
         if let Some(em) = env_manager {
-            if !metadata.dependencies.is_empty() || metadata.use_browser {
-                env_prefix = Some(em.provision(&metadata.name, &metadata.dependencies, metadata.use_browser).await?);
+            if !metadata.dependencies.is_empty() || metadata.use_browser || metadata.runtime.as_deref() == Some("bash") {
+                // If it's a bash skill on Windows, ensure we trigger provision to get m2-bash
+                let mut deps = metadata.dependencies.clone();
+                if metadata.runtime.as_deref() == Some("bash") && !deps.contains(&"bash".to_string()) {
+                    deps.push("bash".to_string());
+                }
+                env_prefix = Some(em.provision(&metadata.name, &deps, metadata.use_browser).await?);
             }
             if !metadata.models.is_empty() {
                 models_path = Some(em.provision_models(&metadata.name, &metadata.models).await?);
             }
         }
 
+        // ─── Layer 0.5: Windows Bash Interception via Pixi ────────────────
+        #[cfg(target_os = "windows")]
+        if interpreter == "bash" || interpreter == "sh" {
+            if let Some(prefix) = &env_prefix {
+                let msys_bash = prefix.join("Library").join("bin").join("bash.exe");
+                if msys_bash.exists() {
+                    interpreter = msys_bash.to_string_lossy().to_string();
+                } else {
+                    let standard_bash = prefix.join("bin").join("bash.exe");
+                    if standard_bash.exists() {
+                        interpreter = standard_bash.to_string_lossy().to_string();
+                    }
+                }
+            }
+        }
+
         // ─── Layer 1: Application firewall (AIMAXXING) ───────────────────────
-        Self::pre_flight_firewall(arguments, interpreter)?;
+        Self::pre_flight_firewall(arguments, &interpreter)?;
 
         // ─── Layer 1b: Secret-in-args guard ──────────────────────────────────
         Self::check_args_for_secrets(arguments)?;
 
         // ─── Layer 2: Kernel sandbox ─────────────────────────────────────────
-        let mut cmd = self.build_os_sandboxed_command(interpreter, &script_path, base_dir, arguments, config);
+        let mut cmd = self.build_os_sandboxed_command(&interpreter, &script_path, base_dir, arguments, config);
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
         cmd.kill_on_drop(true);
         Self::inject_env_vars(config, &mut cmd, env_prefix.as_deref(), models_path.as_deref());

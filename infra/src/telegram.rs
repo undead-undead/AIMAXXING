@@ -70,33 +70,34 @@ impl TelegramNotifier {
 #[async_trait::async_trait]
 impl crate::observable::AgentObserver for TelegramNotifier {
     async fn on_event(&self, event: &brain::agent::core::AgentEvent) -> brain::error::Result<()> {
-        use brain::agent::core::AgentEvent;
-        
-        let message = match event {
-            AgentEvent::Thinking { prompt } => {
+        let message = match &event.data {
+            brain::agent::core::AgentEventData::Thinking { prompt } => {
                 format!("─── *thinking* ───\n`{}`", prompt)
             }
-            AgentEvent::Thought { content } => {
+            brain::agent::core::AgentEventData::Thought { content } => {
                 format!("─── *reasoning* ───\n`{}`", content)
             }
-            AgentEvent::ToolCall { tool, input } => {
+            brain::agent::core::AgentEventData::ToolCall { tool, input } => {
                 format!("─── *tool call* ───\n*target:* `{}`\n*input:* `{}`", tool, input)
             }
-            AgentEvent::ToolResult { tool, output } => {
+            brain::agent::core::AgentEventData::ToolResult { tool, output } => {
                 let preview = if output.len() > 100 { format!("{}...", &output[..100]) } else { output.clone() };
                 format!("─── *tool result* ───\n*target:* `{}`\n*output:* `{}`", tool, preview)
             }
-            AgentEvent::ApprovalPending { tool, input } => {
+            brain::agent::core::AgentEventData::ApprovalPending { tool, input } => {
                 format!("─── *approval required* ───\n*target:* `{}`\n*input:* `{}`", tool, input)
             }
-            AgentEvent::Response { content, .. } => {
+            brain::agent::core::AgentEventData::Response { content, .. } => {
                 format!("─── *response* ───\n{}", content)
             }
-            AgentEvent::Error { message } => {
+            brain::agent::core::AgentEventData::Error { message } => {
                 format!("─── *error* ───\n{}", message)
             }
+            brain::agent::core::AgentEventData::Cancelled { reason } => {
+                format!("─── *cancelled* ───\n{}", reason)
+            }
             // Technical events are ignored for one-way Telegram notifications to avoid spam
-            AgentEvent::StepStart { .. } | AgentEvent::ToolExecutionStart { .. } | AgentEvent::ToolExecutionEnd { .. } | AgentEvent::TokenUsage { .. } | AgentEvent::LatencyTTFT { .. } => {
+            brain::agent::core::AgentEventData::StepStart { .. } | brain::agent::core::AgentEventData::ToolExecutionStart { .. } | brain::agent::core::AgentEventData::ToolExecutionEnd { .. } | brain::agent::core::AgentEventData::TokenUsage { .. } | brain::agent::core::AgentEventData::LatencyTTFT { .. } => {
                 return Ok(());
             }
         };

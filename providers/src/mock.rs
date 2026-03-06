@@ -36,6 +36,7 @@ impl MockProvider {
 
 #[async_trait]
 impl Provider for MockProvider {
+
     async fn stream_completion(
         &self,
         request: brain::agent::provider::ChatRequest,
