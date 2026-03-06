@@ -98,6 +98,42 @@ pub fn all_blueprints() -> Vec<Blueprint> {
             description: "Knowledge capture, Zettelkasten organization, associative linking, and second brain.".into(),
             template: include_str!("templates/knowledge_curator.md").into(),
         },
+        // ── Specialist Agents ───────────────────────────────────────────
+        Blueprint {
+            id: "commander".into(),
+            name: "Commander (Orchestrator)".into(),
+            category: "Specialist Agents".into(),
+            description: "Mission-oriented task decomposer. Expert at orchestrating multiple agents via A2A.".into(),
+            template: include_str!("templates/commander.md").into(),
+        },
+        Blueprint {
+            id: "coder".into(),
+            name: "Senior Coder".into(),
+            category: "Specialist Agents".into(),
+            description: "Industrial-grade software engineering, focusing on Rust, Python and system architecture.".into(),
+            template: include_str!("templates/coder.md").into(),
+        },
+        Blueprint {
+            id: "researcher".into(),
+            name: "Deep Researcher".into(),
+            category: "Specialist Agents".into(),
+            description: "Multi-source synthesis and information verification. Finds truth across the web.".into(),
+            template: include_str!("templates/researcher.md").into(),
+        },
+        Blueprint {
+            id: "analyst".into(),
+            name: "Data Analyst".into(),
+            category: "Specialist Agents".into(),
+            description: "Insight extraction from raw data. Logic-driven decision support and evidence tracking.".into(),
+            template: include_str!("templates/analyst.md").into(),
+        },
+        Blueprint {
+            id: "architect".into(),
+            name: "Systems Architect".into(),
+            category: "Specialist Agents".into(),
+            description: "High-concurrency, low-latency system design. Expert in trade-off analysis and scalability.".into(),
+            template: include_str!("templates/architect.md").into(),
+        },
     ]
 }
 
@@ -114,8 +150,8 @@ mod tests {
     fn test_all_blueprints_count() {
         assert_eq!(
             all_blueprints().len(),
-            10,
-            "Should have exactly 10 blueprints"
+            15,
+            "Should have exactly 15 blueprints"
         );
     }
 

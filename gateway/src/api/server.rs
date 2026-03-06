@@ -851,22 +851,26 @@ async fn get_soul(
     let soul_path = role_dir.join("SOUL.md");
 
     let content = tokio::fs::read_to_string(&soul_path).await.ok();
-
-    let content = content.unwrap_or_else(|| format!(
-        r#"# Agent Persona ({})
-Who are you, and what are your primary responsibilities?
-
-## Identity
-You are a highly capable AI assistant operating under the {} role.
-
-## Behavior Guidelines
-- Respond concisely and accurately.
-- Use your tools to fetch necessary context before answering.
-- Follow global directives in the HEARTBEAT file.
-"#,
-        role.to_uppercase(),
-        role
-    ));
+    let content = match content {
+        Some(c) => c,
+            // Try to find a template in state.persona_templates (case-insensitive)
+            let role_lower = role.to_lowercase();
+            if let Some(t) = state.persona_templates.iter().find(|t| t.name.to_lowercase() == role_lower) {
+                let tools_yaml = t.tools.iter().map(|s| format!("  - {}", s)).collect::<Vec<_>>().join("\n");
+                format!(
+                    "---\nname: {}\nprovider: {}\nmodel: {}\ntemperature: {}\ntools:\n{}\n# base_url: https://your-custom-endpoint.com/v1\n---\n{}",
+                    t.name, t.provider, t.model, t.temperature, tools_yaml, t.body
+                )
+            } else {
+                // Return a very basic default
+                format!(
+                    "# Agent Persona ({})\nWho are you, and what are your primary responsibilities?\n\n## Identity\nYou are a highly capable AI assistant operating under the {} role.\n\n## Behavior Guidelines\n- Respond concisely and accurately.\n- Use your tools to fetch necessary context before answering.\n- Follow global directives in the HEARTBEAT file.\n",
+                    role.to_uppercase(),
+                    role
+                )
+            }
+        }
+    };
 
     Ok(Json(FileDto { content }))
 }
