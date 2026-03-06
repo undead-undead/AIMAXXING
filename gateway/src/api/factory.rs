@@ -9,10 +9,12 @@ use brain::agent::provider::Provider;
 use brain::config::{AppConfig, AgentConfigOverrides};
 use brain::config::vault::{KeyringVault, SecretVault};
 use providers;
-use brain::skills::tool::filesystem::{ReadFileTool, WriteFileTool, ListDirTool, EditFileTool};
-use brain::skills::tool::{
+use builtin_tools::SkillLoader;
+use builtin_tools::tool::filesystem::{ReadFileTool, WriteFileTool, ListDirTool, EditFileTool};
+use builtin_tools::tool::{
     GitOpsTool, ChartTool, MailerTool, DataTransformTool, 
-    NotifierTool, CipherTool, TextExtractTool, TranscribeTool, SpeakTool
+    NotifierTool, CipherTool, TextExtractTool, TranscribeTool, SpeakTool,
+    DelegateTool, HandoverTool
 };
 use engram::KnowledgeSearchTool;
 use engram::HierarchicalRetriever;
@@ -20,7 +22,7 @@ use engram::HierarchicalRetriever;
 /// Factory for creating agents based on soul configurations
 pub struct AgentFactory {
     pub config: Arc<parking_lot::RwLock<AppConfig>>,
-    pub loader: Arc<brain::skills::SkillLoader>,
+    pub loader: Arc<SkillLoader>,
     pub coordinator: Arc<Coordinator>,
     pub retriever: Arc<HierarchicalRetriever>,
     pub base_dir: PathBuf,
@@ -30,7 +32,7 @@ pub struct AgentFactory {
 impl AgentFactory {
     pub fn new(
         config: Arc<parking_lot::RwLock<AppConfig>>,
-        loader: Arc<brain::skills::SkillLoader>,
+        loader: Arc<SkillLoader>,
         coordinator: Arc<Coordinator>,
         retriever: Arc<HierarchicalRetriever>,
         base_dir: PathBuf,
@@ -126,11 +128,25 @@ impl AgentFactory {
         // 2. Build Agent
         let mut builder = Agent::builder(provider.clone())
             .role(role)
-            .with_delegation(self.coordinator.clone())
-            .with_handover(self.coordinator.clone())
-            .with_dynamic_skills(self.loader.clone())?
-            .with_enabled_tools(self.enabled_tools.clone())
             .soul_path(soul_path);
+
+        // Add Standard Capability Tools
+        builder = builder
+            .tool(DelegateTool::new(Arc::downgrade(&self.coordinator)))
+            .tool(HandoverTool::new(Arc::downgrade(&self.coordinator)))
+            .tool(builtin_tools::ReadSkillDoc::new(self.loader.clone()))
+            .context_injector(self.loader.clone());
+
+        // Add Dynamic Skills from loader (respecting enabled_tools filter)
+        {
+            let enabled = self.enabled_tools.read();
+            for skill_entry in self.loader.skills.iter() {
+                let name = skill_entry.key();
+                if enabled.is_empty() || enabled.contains(name) {
+                    builder = builder.shared_tool(Arc::clone(skill_entry.value()) as Arc<dyn brain::prelude::Tool>);
+                }
+            }
+        }
 
         // 3. Add Core Tools based on overrides or defaults
         let configured_tools = ovr.tools.clone().unwrap_or_else(|| {

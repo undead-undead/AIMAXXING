@@ -1,6 +1,6 @@
 pub mod api;
 pub mod blueprints;
-pub mod mcp;
+// mcp logic moved to standalone 'mcp' crate
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PersonaTemplate {

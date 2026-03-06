@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::info;
-use brain::skills::SkillLoader;
+use builtin_tools::SkillLoader;
 use brain::prelude::Tool;
 use std::sync::Arc;
 
@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
-use aimaxxing_gateway::mcp;
+use mcp;
 use aimaxxing_gateway::api;
 use brain::agent::multi_agent::{Coordinator, AgentRole};
 use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever};
@@ -101,7 +101,7 @@ impl std::io::Write for ChannelWriter {
 async fn main() -> Result<()> {
     // Default paths
     let base_dir = std::env::current_dir()?;
-    let logs_dir = base_dir.join("logs");
+    let logs_dir = base_dir.join("data").join("logs");
     if !logs_dir.exists() { let _ = std::fs::create_dir_all(&logs_dir); }
 
     // Initialize Logging with Broadcast capability
@@ -187,10 +187,10 @@ async fn main() -> Result<()> {
 
     // Default paths
     let skills_path = base_dir.join("skills");
-    let envs_path = base_dir.join(".aimaxxing_envs");
+    let envs_path = base_dir.join("data").join("envs");
 
     let env_manager = Arc::new(brain::env::EnvManager::new(envs_path));
-    let loader = Arc::new(SkillLoader::new(skills_path).with_env_manager(env_manager));
+    let loader: Arc<SkillLoader> = Arc::new(SkillLoader::new(skills_path).with_env_manager(env_manager));
     let loader_init = {
         let l = Arc::clone(&loader);
         tokio::spawn(async move {
@@ -233,7 +233,7 @@ async fn main() -> Result<()> {
             server.run().await?;
         }
         Commands::Web { port, provider: _, model: _ } => {
-            let config_path = base_dir.join("aimaxxing.yaml");
+            let config_path = base_dir.join("data").join("aimaxxing.yaml");
             let mut app_config = brain::config::AppConfig::load_from_file(&config_path)?;
             
             // CLI arg overrides config
@@ -241,17 +241,17 @@ async fn main() -> Result<()> {
                 app_config.server.port = port;
             }
 
-            use brain::auth::{OAuthManager, FileTokenStore};
+            use auth::{OAuthManager, FileTokenStore};
 
             // Initialize OAuth manager
-            let token_store = Arc::new(FileTokenStore::new(base_dir.join(".aimaxxing_tokens.json")));
+            let token_store = Arc::new(FileTokenStore::new(base_dir.join("data").join("auth").join("tokens.json")));
             let mut oauth_manager = OAuthManager::new(token_store);
             
             // Register OAuth providers (Google example)
             let google_id = std::env::var("GOOGLE_CLIENT_ID").ok();
             let google_secret = std::env::var("GOOGLE_CLIENT_SECRET").ok();
             if let (Some(id), Some(secret)) = (google_id, google_secret) {
-                let config = brain::auth::OAuthConfig {
+                let config = auth::OAuthConfig {
                     client_id: id,
                     client_secret: secret,
                     auth_url: "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
@@ -277,7 +277,7 @@ async fn main() -> Result<()> {
             
             let data_dir = base_dir.join("data");
             let engram_config = HybridSearchConfig {
-                db_path: data_dir.join("engram.db"),
+                db_path: data_dir.join("search").join("engram.db"),
                 ..Default::default()
             };
             
@@ -295,14 +295,14 @@ async fn main() -> Result<()> {
 
             // Swarm & Agents Initialization
             let coordinator = Arc::new(Coordinator::new());
-            let base_soul_path = app_config.soul_path.clone().unwrap_or_else(|| base_dir.join("soul"));
-            let heartbeat_path = app_config.heartbeat_path.clone().unwrap_or_else(|| base_dir.join("HEARTBEAT.md"));
+            let base_soul_path = app_config.soul_path.clone().unwrap_or_else(|| base_dir.join("data").join("soul"));
+            let heartbeat_path = app_config.heartbeat_path.clone().unwrap_or_else(|| base_dir.join("data").join("HEARTBEAT.md"));
             
             if !base_soul_path.exists() { let _ = std::fs::create_dir_all(&base_soul_path); }
 
             // Load persona templates from file or use defaults
             let persona_config = {
-                let p_yaml = base_dir.join("personas.yaml");
+                let p_yaml = base_dir.join("data").join("personas.yaml");
                 if p_yaml.exists() {
                     match std::fs::read_to_string(&p_yaml) {
                         Ok(content) => {

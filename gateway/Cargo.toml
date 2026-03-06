@@ -8,6 +8,12 @@ repository.workspace = true
 [dependencies]
 brain = { workspace = true, default-features = false, features = ["http", "wasm", "cron"] }
 engram = { workspace = true, features = ["fts", "vector"] }
+security = { workspace = true }
+connectors = { workspace = true }
+auth = { workspace = true }
+knowledge = { workspace = true }
+mcp = { workspace = true }
+builtin-tools = { path = "../builtin-tools", features = ["http", "browser", "cron", "vector-db"] }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber.workspace = true

@@ -17,18 +17,18 @@ use tower_http::timeout::TimeoutLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use std::time::Duration;
 
-use brain::skills::SkillLoader;
+use builtin_tools::SkillLoader;
 // use brain::error::Error; // Removed unused import
 use brain::prelude::Tool;
 
 use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever};
-use brain::knowledge::router::IntentRouter;
+use knowledge::IntentRouter;
 
 
 
 use crate::api::bridge::AgentBridge;
 use brain::bus::MessageBus;
-use brain::connectors::{Connector, telegram::TelegramConnector, discord::DiscordConnector, feishu::FeishuConnector, dingtalk::DingTalkConnector, im::BarkConnector};
+use connectors::{Connector, TelegramConnector, DiscordConnector, FeishuConnector, DingTalkConnector, BarkConnector};
 use brain::agent::multi_agent::{Coordinator, AgentRole};
 
 /// App state shared across handlers
@@ -36,7 +36,7 @@ use brain::agent::multi_agent::{Coordinator, AgentRole};
 pub struct AppState {
     pub skills: Arc<SkillLoader>,
     pub coordinator: Arc<Coordinator>, 
-    pub oauth: Arc<brain::auth::OAuthManager>,
+    pub oauth: Arc<auth::OAuthManager>,
     pub security: Arc<crate::api::security::SecurityManager>,
     pub config: Arc<parking_lot::RwLock<brain::config::AppConfig>>,
     pub enabled_tools: Arc<parking_lot::RwLock<std::collections::HashSet<String>>>,
@@ -45,7 +45,7 @@ pub struct AppState {
     pub log_sender: broadcast::Sender<String>,
     // Knowledge Base
     pub knowledge: Arc<HybridSearchEngine>,
-    pub intent_router: Arc<IntentRouter>,
+    pub intent_router: Arc<knowledge::IntentRouter>,
     pub retriever: Option<Arc<HierarchicalRetriever>>,
     pub factory: Arc<crate::api::factory::AgentFactory>,
     pub connector_trigger: mpsc::UnboundedSender<()>,
@@ -65,7 +65,7 @@ use std::path::PathBuf;
 pub async fn start_server(
     loader: Arc<SkillLoader>, 
     coordinator: Arc<Coordinator>, 
-    oauth: Arc<brain::auth::OAuthManager>,
+    oauth: Arc<auth::OAuthManager>,
     config: Arc<parking_lot::RwLock<brain::config::AppConfig>>,
     enabled_tools: Arc<parking_lot::RwLock<std::collections::HashSet<String>>>,
     config_path: PathBuf,
@@ -1043,7 +1043,7 @@ async fn cancel_handler(
     (StatusCode::OK, format!("Cancelled {} active task(s)", count))
 }
 
-use brain::connectors::ChannelMetadata;
+use connectors::ChannelMetadata;
 
 #[derive(Serialize)]
 struct ChannelSchemaResponse {
@@ -2280,9 +2280,9 @@ async fn shutdown_handler() -> (StatusCode, Json<serde_json::Value>) {
 }
 
 // ── System Sandboxes Handlers ──────────────────────────────────────────────
-async fn get_active_sandboxes() -> Json<Vec<brain::skills::sandbox::ActiveSandboxContext>> {
+async fn get_active_sandboxes() -> Json<Vec<security::sandbox::ActiveSandboxContext>> {
     let mut sandboxes = Vec::new();
-    for entry in brain::skills::sandbox::ACTIVE_SANDBOXES.iter() {
+    for entry in security::sandbox::ACTIVE_SANDBOXES.iter() {
         sandboxes.push(entry.value().clone());
     }
     // Sort by started_at ascending
@@ -2292,7 +2292,7 @@ async fn get_active_sandboxes() -> Json<Vec<brain::skills::sandbox::ActiveSandbo
 
 async fn kill_sandbox(Path(pid): Path<u32>) -> (StatusCode, Json<serde_json::Value>) {
     // 1. Check if PID is in our registry
-    if !brain::skills::sandbox::ACTIVE_SANDBOXES.contains_key(&pid) {
+    if !security::sandbox::ACTIVE_SANDBOXES.contains_key(&pid) {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({
             "success": false,
             "message": format!("Sandbox PID {} not found or already terminated", pid)
@@ -2311,7 +2311,7 @@ async fn kill_sandbox(Path(pid): Path<u32>) -> (StatusCode, Json<serde_json::Val
         .output();
 
     // 3. Remove regardless of OS kill output since we assume it's dead
-    brain::skills::sandbox::ACTIVE_SANDBOXES.remove(&pid);
+    security::sandbox::ACTIVE_SANDBOXES.remove(&pid);
 
     match output {
         Ok(o) if o.status.success() => {
