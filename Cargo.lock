@@ -129,6 +129,7 @@ dependencies = [
  "connectors",
  "dashmap",
  "dialoguer",
+ "dirs 5.0.1",
  "dotenv",
  "engram",
  "futures",
@@ -155,6 +156,7 @@ dependencies = [
  "tracing-subscriber",
  "urlencoding",
  "uuid",
+ "which 6.0.3",
 ]
 
 [[package]]
@@ -997,7 +999,7 @@ dependencies = [
  "tracing-wasm",
  "urlencoding",
  "uuid",
- "which",
+ "which 8.0.0",
  "windows-sys 0.52.0",
  "zip 0.6.6",
 ]
@@ -1040,7 +1042,7 @@ dependencies = [
  "tracing",
  "urlencoding",
  "uuid",
- "which",
+ "which 8.0.0",
  "zip 2.4.2",
 ]
 
@@ -2343,6 +2345,15 @@ dependencies = [
 
 [[package]]
 name = "dirs"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
+dependencies = [
+ "dirs-sys 0.4.1",
+]
+
+[[package]]
+name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
@@ -2359,6 +2370,18 @@ dependencies = [
  "libc",
  "redox_users 0.4.6",
  "winapi",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users 0.4.6",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -4168,7 +4191,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tungstenite 0.28.0",
  "url",
- "which",
+ "which 8.0.0",
  "winreg",
 ]
 
@@ -7727,7 +7750,7 @@ dependencies = [
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
- "which",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -10632,6 +10655,18 @@ dependencies = [
  "js-sys",
  "log",
  "web-sys",
+]
+
+[[package]]
+name = "which"
+version = "6.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ee928febd44d98f2f459a4a79bd4d928591333a494a10a868418ac1b39cf1f"
+dependencies = [
+ "either",
+ "home",
+ "rustix 0.38.44",
+ "winsafe",
 ]
 
 [[package]]

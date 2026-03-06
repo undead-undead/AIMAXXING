@@ -257,8 +257,13 @@ pub struct AppState {
     // ── Task Cancellation state (Phase 11-B) ───────────────────────
     pub cancel_promise: Option<Promise<Result<(), String>>>,
 
-    /// UI Theme state
     pub night_mode: bool,
+
+    // ── Reranker & Embedder state (Phase 7.2) ──────────────────────────────
+    pub use_local_reranker: Option<bool>,
+    pub bge_model_status: Option<String>,
+    pub use_local_embed: Option<bool>,
+    pub bert_model_status: Option<String>,
 
     /// UI Language state
     pub language: Language,
@@ -475,6 +480,11 @@ impl AppState {
             blueprint_apply_role: String::new(),
 
             cancel_promise: None,
+
+            use_local_reranker: Some(false),
+            bge_model_status: Some("Not Installed".to_string()),
+            use_local_embed: Some(false),
+            bert_model_status: Some("Not Installed".to_string()),
 
             night_mode,
             language,

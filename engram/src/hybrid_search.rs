@@ -7,6 +7,7 @@ use crate::embedder::Embedder;
 use crate::error::{EngramError, Result};
 #[cfg(feature = "vector")]
 use crate::quant::QuantLevel;
+use crate::reranker::{NoOpReranker, Reranker};
 use crate::store::{Collection, Document, EngramStore};
 #[cfg(feature = "vector")]
 use crate::vector_store::VectorStore;
@@ -70,6 +71,7 @@ pub struct HybridSearchEngine {
     vector_store: Option<Arc<VectorStore>>,
     #[cfg(feature = "vector")]
     embedder: Option<Arc<Embedder>>,
+    reranker: Arc<dyn Reranker>,
     config: HybridSearchConfig,
 }
 
@@ -102,8 +104,15 @@ impl HybridSearchEngine {
             vector_store,
             #[cfg(feature = "vector")]
             embedder,
+            reranker: Arc::new(NoOpReranker),
             config,
         })
+    }
+
+    /// Set a custom reranker
+    pub fn with_reranker(mut self, reranker: Arc<dyn Reranker>) -> Self {
+        self.reranker = reranker;
+        self
     }
 
     /// Index a document with differentiated quantization (Soul vs Background)
@@ -192,7 +201,10 @@ impl HybridSearchEngine {
         });
         results.truncate(limit);
 
-        // Re-rank
+        // 4. Reranking (Cross-Encoder / Late Interaction)
+        let mut results = self.reranker.rerank(query, results)?;
+
+        // Re-rank indices after reranking
         for (i, r) in results.iter_mut().enumerate() {
             r.rank = i + 1;
         }
@@ -289,6 +301,9 @@ impl HybridSearchEngine {
         let mut results: Vec<HybridSearchResult> = fused.into_values().collect();
         results.sort_by(|a, b| b.rrf_score.partial_cmp(&a.rrf_score).unwrap());
         results.truncate(limit);
+
+        // Reranking (Cross-Encoder / Late Interaction)
+        let mut results = self.reranker.rerank(query, results)?;
 
         for (i, r) in results.iter_mut().enumerate() {
             r.rank = i + 1;

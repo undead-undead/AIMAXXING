@@ -31,26 +31,24 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
 [Types]
-Name: "recommended"; Description: "Full Version (Recommended - Baseline runtimes included)"
-Name: "lite"; Description: "Lite Version (Smallest download, requires internet for runtimes)"
+Name: "recommended"; Description: "Recommended Version (Managers + Bash included)"
+Name: "lite"; Description: "Lite Version (Smallest download, requires internet for managers)"
 Name: "custom"; Description: "Custom installation"; Flags: iscustom
 
 [Components]
 Name: "main"; Description: "Main Application (AIMAXXING Core)"; Types: lite recommended custom; Flags: fixed
-Name: "runtimes"; Description: "Baseline Runtimes (Python 3.11, Bun, Bash)"; Types: recommended custom
-Name: "tools"; Description: "Environment Managers (uv, pixi)"; Types: recommended custom
+Name: "tools"; Description: "Environment Managers (uv, pixi) & Bash"; Types: recommended custom
 
 [Files]
 ; Lite Version Files
 Source: "target\release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: main
 
-; Local Binaries (Bundled in Full Version)
+; Local Binaries (Bundled in Recommended Version)
 Source: "bin\uv.exe"; DestDir: "{app}\data\bin"; Flags: ignoreversion; Components: tools
 Source: "bin\pixi.exe"; DestDir: "{app}\data\bin"; Flags: ignoreversion; Components: tools
 
-; Pre-provisioned Runtimes (Full Version)
-; These would be extracted from a pre-built envs folder
-Source: "data\envs\*"; DestDir: "{app}\data\envs"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: runtimes
+; Pre-provisioned Bash Environment (Recommended Version)
+Source: "data\envs\bash\*"; DestDir: "{app}\data\envs\bash"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: tools
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

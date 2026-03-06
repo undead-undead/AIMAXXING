@@ -121,23 +121,29 @@ platforms = ["{}"]
             if pixi_local.exists() {
                 pixi_local.to_string_lossy().to_string()
             } else {
-                // Fallback to standard install paths
-                let home = dirs::home_dir().unwrap_or_default();
-                let paths = if cfg!(target_os = "windows") {
-                    vec![
-                        home.join(".pixi").join("bin").join("pixi.exe"),
-                        dirs::data_local_dir().unwrap_or_default().join("pixi").join("bin").join("pixi.exe"),
-                    ]
-                } else {
-                    vec![home.join(".pixi").join("bin").join("pixi")]
-                };
+                // Self-Healing: Trigger auto-download if missing (Lite version behavior)
+                match self.ensure_pixi().await {
+                    Ok(path) => path.to_string_lossy().to_string(),
+                    Err(_) => {
+                        // Fallback to standard install paths as a last resort
+                        let home = dirs::home_dir().unwrap_or_default();
+                        let paths = if cfg!(target_os = "windows") {
+                            vec![
+                                home.join(".pixi").join("bin").join("pixi.exe"),
+                                dirs::data_local_dir().unwrap_or_default().join("pixi").join("bin").join("pixi.exe"),
+                            ]
+                        } else {
+                            vec![home.join(".pixi").join("bin").join("pixi")]
+                        };
 
-                paths.into_iter()
-                    .find(|p| p.exists())
-                    .map(|p| p.to_string_lossy().to_string())
-                    .ok_or_else(|| {
-                        Error::Internal("pixi binary not found. Please ensure it exists in the 'bin' folder or system PATH.".to_string())
-                    })?
+                        paths.into_iter()
+                            .find(|p| p.exists())
+                            .map(|p| p.to_string_lossy().to_string())
+                            .ok_or_else(|| {
+                                Error::Internal("pixi binary not found and auto-provisioning failed. Please ensure it exists in the 'bin' folder or system PATH.".to_string())
+                            })?
+                    }
+                }
             }
         };
 

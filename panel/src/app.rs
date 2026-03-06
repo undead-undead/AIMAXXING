@@ -1576,6 +1576,88 @@ impl ClawPanel {
                     }
                 }
             });
+
+            ui.add_space(24.0);
+
+            // ── Section: Vector Search & Reranking (Phase 7.2) ────────────────
+            egui::Frame::new()
+                .fill(self.theme_bg_deep())
+                .stroke(Stroke::new(1.0, palette::border(self.state.night_mode)))
+                .corner_radius(egui::CornerRadius::same(8))
+                .inner_margin(egui::Margin::same(16))
+                .show(ui, |ui| {
+                    ui.label(RichText::new("🔍 Local Semantic Search (Embedder BERT)").strong().color(palette::ACCENT));
+                    ui.add_space(4.0);
+                    ui.label(RichText::new("Generates vector embeddings locally for blazing fast, private semantic retrieval without external API calls.").small().color(palette::text_dim(self.state.night_mode)));
+                    ui.add_space(12.0);
+                    
+                    ui.horizontal(|ui| {
+                        let mut use_embed = self.state.use_local_embed.unwrap_or(false);
+                        if ui.checkbox(&mut use_embed, "Enable Local BERT Embedding").changed() {
+                            self.state.use_local_embed = Some(use_embed);
+                            crate::app_state::save_config(&self.state);
+                        }
+                        
+                        if use_embed {
+                            let status = self.state.bert_model_status.as_deref().unwrap_or("Not Installed");
+                            let color = match status {
+                                "Ready" | "loaded" => palette::SUCCESS,
+                                "downloading" => palette::WARNING,
+                                _ => palette::text_dim(self.state.night_mode),
+                            };
+                            
+                            ui.label(RichText::new(format!("Status: {}", status)).color(color));
+                            
+                            if status != "Ready" && status != "loaded" && status != "downloading" {
+                                if ui.button("⬇ Download Model (MiniLM-L6)").clicked() {
+                                    self.state.bert_model_status = Some("downloading".to_string());
+                                    self.do_download_model(ctx, "all-minilm-l6-v2");
+                                }
+                            }
+                        }
+                    });
+                });
+
+            ui.add_space(16.0);
+
+            egui::Frame::new()
+                .fill(self.theme_bg_deep())
+                .stroke(Stroke::new(1.0, palette::border(self.state.night_mode)))
+                .corner_radius(egui::CornerRadius::same(8))
+                .inner_margin(egui::Margin::same(16))
+                .show(ui, |ui| {
+                    ui.label(RichText::new("🎯 Semantic Reranking (Cross-Encoder)").strong().color(palette::ACCENT));
+                    ui.add_space(4.0);
+                    ui.label(RichText::new("Improves Search/RAG recall accuracy by cross-testing retrieved chunks against the query using a dedicated neural model.").small().color(palette::text_dim(self.state.night_mode)));
+                    ui.add_space(12.0);
+                    
+                    ui.horizontal(|ui| {
+                        let mut use_reranker = self.state.use_local_reranker.unwrap_or(false);
+                        if ui.checkbox(&mut use_reranker, "Enable Local BGE-M3 Reranker").changed() {
+                            self.state.use_local_reranker = Some(use_reranker);
+                            crate::app_state::save_config(&self.state);
+                        }
+                        
+                        if use_reranker {
+                            let status = self.state.bge_model_status.as_deref().unwrap_or("Not Installed");
+                            
+                            let color = match status {
+                                "Ready" | "loaded" => palette::SUCCESS,
+                                "downloading" => palette::WARNING,
+                                _ => palette::text_dim(self.state.night_mode),
+                            };
+                            
+                            ui.label(RichText::new(format!("Status: {}", status)).color(color));
+                            
+                            if status != "Ready" && status != "loaded" && status != "downloading" {
+                                if ui.button("⬇ Download Model (BGE-M3)").clicked() {
+                                    self.state.bge_model_status = Some("downloading".to_string());
+                                    self.do_download_model(ctx, "bge-reranker-v2-minica");
+                                }
+                            }
+                        }
+                    });
+                });
         });
     }
 
@@ -4582,5 +4664,29 @@ impl ClawPanel {
         self.state.persona_role_content = content.to_string();
         self.state.persona_role_dirty = true;
         self.update_soul_fields_from_content();
+    }
+
+    pub fn do_download_model(&mut self, ctx: &egui::Context, model_id: &str) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let url = format!("{}/api/models/download", self.state.gateway_url);
+            let ctx2 = ctx.clone();
+            let mid = model_id.to_string();
+            spawn_task(&self.rt, async move {
+                let req_client = reqwest::Client::new();
+                let payload = serde_json::json!({
+                    "model_id": mid
+                });
+                match req_client.post(&url).json(&payload).send().await {
+                    Ok(res) => {
+                        tracing::info!("Model download started for {}: {:?}", mid, res.status());
+                    }
+                    Err(e) => {
+                        tracing::error!("Error starting model download for {}: {}", mid, e);
+                    }
+                }
+                ctx2.request_repaint();
+            });
+        }
     }
 }

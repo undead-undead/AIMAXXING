@@ -21,7 +21,9 @@ tracing-appender = "0.2"
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json.workspace = true
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.4", features = ["derive", "env"] }
+dirs = "5.0"
+which = "6.0"
 futures = { workspace = true }
 async-stream = "0.3"
 async-trait = { workspace = true }

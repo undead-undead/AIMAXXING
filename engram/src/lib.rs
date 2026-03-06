@@ -11,16 +11,20 @@
 pub mod content_hash;
 pub mod error;
 pub mod kv;
+pub mod storage;
 pub mod store;
 
 // Search modules
 pub mod fts;
 pub mod hybrid_search;
+pub mod reranker;
 pub mod rrf;
 
 // Vector search (feature-gated)
 #[cfg(feature = "vector")]
 pub mod embedder;
+#[cfg(feature = "vector")]
+pub mod local_reranker;
 #[cfg(feature = "vector")]
 pub mod quant;
 #[cfg(feature = "vector")]
@@ -43,11 +47,13 @@ pub mod watcher;
 // Re-exports
 pub use error::{EngramError, Result};
 pub use kv::EngramKV;
+pub use storage::Storage;
 pub use store::{Collection, Document, EngramStore, StoreStats}; // Removed SearchResult
 
 pub use hybrid_search::{
     HybridSearchConfig, HybridSearchEngine, HybridSearchResult, HybridSearchStats,
 };
+pub use reranker::{NoOpReranker, Reranker};
 pub use rrf::{FusedResult, RrfConfig, RrfFusion};
 pub use tool::KnowledgeSearchTool;
 
@@ -58,6 +64,8 @@ pub use watcher::FileWatcher;
 
 #[cfg(feature = "vector")]
 pub use embedder::{Embedder, EmbedderConfig};
+#[cfg(feature = "vector")]
+pub use local_reranker::LocalCandleReranker;
 #[cfg(feature = "vector")]
 pub use quant::{QuantLevel, Quantizer, ScalarQuantizer};
 #[cfg(feature = "vector")]

@@ -102,3 +102,38 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 - **Tasks**:
     - [x] Create `install.ps1` for native Windows environment setup (matching `install.sh`).
     - [x] Create `build_all.ps1` for compilation.
+    - [x] Create professional `Setup.exe` installer with Lite and Recommended (Tools + Bash) tiers.
+    - [x] Rebrand entire experience from `ClawHub` to `Smithery`.
+
+---
+
+## Phase 7: Engram V2 (Knowledge Engine Evolution)
+
+*Constraint*: Evolve the `engram` crate from a local library to an enterprise-grade, high-performance RAG and KAG infrastructure.
+
+### 7.1 Storage Layer Abstraction (Pluggable Storage)
+- **Goal**: Decouple the hardcoded `redb` dependency and introduce a `Storage` trait for flexible backends.
+- **Tasks**:
+    - [x] Define the `Storage` trait in `engram/src/storage.rs`.
+    - [x] Implement `RedbStorage` as the default local backend.
+    - [ ] Design hot/cold data tiering abstraction for future-proofing (e.g., SQLite/Sled integration).
+
+### 7.2 Retrieval Evolution: Cross-Encoder Reranking
+- **Goal**: Integrate a local, lightweight Cross-Encoder model to achieve precision reranking of vector/BM25 results without relying on cloud APIs.
+- **Tasks**:
+    - [ ] Abstract a `Reranker` trait supporting multiple backends.
+    - [ ] Implement `LocalCandleReranker` using `candle-core` and a GGUF quantized model (e.g., BGE-Reranker-v2-Minica).
+    - [ ] Build a one-click "Download & Load" UI in the Panel so users don't need to manually hunt for model files (Embeddings & Rerankers).
+    - [ ] Update `hybrid_search.rs` to pipeline: Coarse Search (BM25+HNSW) -> Precision Rerank -> Top-K.
+
+### 7.3 Computation Evolution: Embedding Cache & Model Pooling
+- **Goal**: Prevent redundant embeddings and allow dynamic model selection to save compute and API costs.
+- **Tasks**:
+    - [ ] Implement an `EmbeddingCache` mapping SHA-256 content hashes to vector representations.
+    - [ ] Refactor embedding ingestion to skip API calls for previously hashed texts.
+
+### 7.4 System/Hardware Evolution: Zero-Copy and Advanced SIMD
+- **Goal**: Squeeze maximum performance out of native hardware for vector retrieval and memory mapping.
+- **Tasks**:
+    - [ ] Refactor internal KV fetching to use `Bytes` or `Arc<[u8]>` instead of `String` to eliminate unnecessary memory copies.
+    - [ ] Optimize the `HyperbolicPoincareDistance` and Cosine metrics in `vector_store.rs` by fully leveraging AVX-512/NEON instructions where available.

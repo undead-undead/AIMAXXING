@@ -31,6 +31,9 @@ pub enum EngramError {
 
     #[error("Invalid virtual path: {0}")]
     InvalidVirtualPath(String),
+
+    #[error("Model load error: {0}")]
+    ModelLoad(String),
 }
 
 impl From<redb::Error> for EngramError {

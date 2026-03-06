@@ -4,7 +4,7 @@
 //! Index data is persisted in Engram-KV tables.
 
 use crate::error::Result;
-use crate::kv::EngramKV;
+use crate::storage::Storage;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -58,12 +58,12 @@ pub struct FtsResult {
 
 /// Full-text search engine using BM25 on Engram-KV
 pub struct FtsEngine {
-    kv: Arc<EngramKV>,
+    kv: Arc<dyn Storage>,
     config: Bm25Config,
 }
 
 impl FtsEngine {
-    pub fn new(kv: Arc<EngramKV>) -> Self {
+    pub fn new(kv: Arc<dyn Storage>) -> Self {
         Self {
             kv,
             config: Bm25Config::default(),

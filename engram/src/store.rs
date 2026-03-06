@@ -7,6 +7,7 @@ use crate::content_hash::{get_docid, hash_content};
 use crate::error::{EngramError, Result};
 use crate::fts::FtsEngine;
 use crate::kv::EngramKV;
+use crate::storage::Storage;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -62,7 +63,7 @@ const MAX_CONTENT_SIZE: usize = 10 * 1024 * 1024; // 10MB limit
 
 /// EngramStore - Core storage engine built on Engram-KV
 pub struct EngramStore {
-    kv: Arc<EngramKV>,
+    kv: Arc<dyn Storage>,
 }
 
 impl EngramStore {
@@ -73,12 +74,12 @@ impl EngramStore {
     }
 
     /// Get the underlying KV engine
-    pub fn kv(&self) -> &EngramKV {
-        &self.kv
+    pub fn kv(&self) -> &(dyn Storage + 'static) {
+        self.kv.as_ref()
     }
 
     /// Get shared reference to KV engine
-    pub fn kv_arc(&self) -> Arc<EngramKV> {
+    pub fn kv_arc(&self) -> Arc<dyn Storage> {
         Arc::clone(&self.kv)
     }
 

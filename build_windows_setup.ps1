@@ -1,5 +1,5 @@
 # AIMAXXING Windows Build & Package Script
-# Requires: cargo, Inno Setup (iscc in PATH)
+# Generates Lite (binary only) and Recommended (Tools + Bash) installers.
 
 $VERSION = "0.3.0"
 $BUILD_DIR = "target\release"
@@ -26,10 +26,10 @@ if (-not (Test-Path "$BIN_DIR\pixi.exe")) {
     Invoke-WebRequest -Uri "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-pc-windows-msvc.exe" -OutFile "$BIN_DIR\pixi.exe"
 }
 
-Write-Host "--- 3. Preparing Pre-provisioned Runtimes (for Full Version) ---" -ForegroundColor Cyan
-# In a real CI environment, we would run 'uv python install 3.11' and 'pixi install' here
-# and copy the result to data/envs for bundling.
-if (-not (Test-Path "$DATA_DIR\envs")) { New-Item -ItemType Directory -Path "$DATA_DIR\envs" -Force }
+Write-Host "--- 3. Preparing Pre-provisioned Bash Environment (Recommended Version) ---" -ForegroundColor Cyan
+# In a real CI environment, we would run 'pixi install bash' here
+# and copy the result to data/envs/bash for bundling.
+if (-not (Test-Path "$DATA_DIR\envs\bash")) { New-Item -ItemType Directory -Path "$DATA_DIR\envs\bash" -Force }
 
 Write-Host "--- 4. Generating Inno Setup Installer ---" -ForegroundColor Cyan
 if (Get-Command "iscc" -ErrorAction SilentlyContinue) {
