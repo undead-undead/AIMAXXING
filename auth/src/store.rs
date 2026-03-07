@@ -1,4 +1,4 @@
-use brain::error::{Error, Result};
+use brain::error::Result;
 use async_trait::async_trait;
 use crate::types::OAuthToken;
 
@@ -64,5 +64,41 @@ impl TokenStore for FileTokenStore {
         let mut map = self.load().await?;
         map.remove(provider);
         self.save(&map).await
+    }
+}
+
+/// A token store backed by the encrypted Vault
+pub struct VaultTokenStore {
+    vault: std::sync::Arc<crate::vault::Vault>,
+}
+
+impl VaultTokenStore {
+    pub fn new(vault: std::sync::Arc<crate::vault::Vault>) -> Self {
+        Self { vault }
+    }
+}
+
+#[async_trait]
+impl TokenStore for VaultTokenStore {
+    async fn save_token(&self, provider: &str, token: OAuthToken) -> Result<()> {
+        let key = format!("oauth_token_{}", provider);
+        let val = serde_json::to_string(&token)?;
+        self.vault.set(&key, &val)
+    }
+
+    async fn get_token(&self, provider: &str) -> Result<Option<OAuthToken>> {
+        let key = format!("oauth_token_{}", provider);
+        match self.vault.get(&key)? {
+            Some(val) => {
+                let token = serde_json::from_str(&val)?;
+                Ok(Some(token))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn delete_token(&self, provider: &str) -> Result<()> {
+        let key = format!("oauth_token_{}", provider);
+        self.vault.delete(&key)
     }
 }

@@ -1,3 +1,99 @@
+# AIMAXXING Roadmap (v2.0)
+
+This document outlines the strategic evolution of AIMAXXING, focusing on the **Zero-Admin Windows Experience**, **Hybrid Runtimes**, and **Granular Security**.
+
+---
+
+## 🔴 Phase 1: CRITICAL - Windows Native & Security Hardening
+*Objective: Achieve industry-leading "Zero-Admin" and "Zero-Login" performance and security on Windows without requiring WSL, Docker, or elevated privileges.*
+
+### 1.0 Zero-Login Strategy (UX First)
+- [x] **Agnostic Identity**: Design the application to be "Single-User by Default" where the local OS session provides the identity. No "Login Screen" or "JWT Sessions" for core functionality.
+- [x] **Static Secret Exchange**: Implement a simple, one-time static API key exchange between Panel (GUI) and Gateway (Backend) only for non-localhost connections to prevent cross-app unauthorized commands.
+
+### 1.1 Hybrid & Portable Zero-Admin Runtimes (uv + pixi + Mini Bash)
+- [x] **Pixi Responsibility Contraction**: Refactor `EnvManager` to use Pixi *only* for Python interpreter isolation. Remove git/bash/gcc from Conda installs.
+- [x] **UV Integration**: Bundle `uv.exe` in `infra/bin`. Implement `uv pip install` inside Pixi environments for 10x faster package management and improved build success.
+- [x] **15MB Mini Git Bash**: Package a curated, UPX-compressed subset of Git Bash (bash, grep, awk, sed, coreutils) to provide 99% script compatibility at < 30MB total footprint.
+- [x] **Portable Toolchain Integration**:
+    - [x] Bundle `bun.exe` (~20MB) and a minimal `git.exe` (~10MB) in `infra/bin`.
+    - [x] Bundle a minimal `gcc` (MinGW-w64 subset, ~50MB) for essential C-extensions.
+    - [x] Ensure `EnvManager` injects `infra/bin` at the front of `PATH`.
+- [x] **PowerShell First Strategy**:
+    - [x] Implement "Syntax Detection": Simple tasks (ls, rm, cp) map to native PowerShell aliases.
+    - [x] Complex tasks (pipes, redirects, `.sh` scripts) fallback to Mini Git Bash.
+    - [x] Replace hardcoded `/bin/bash` with Windows-aware branch in terminal sockets.
+
+### 1.2 Multi-Platform Security Firewall (Phase 1.1 Parity)
+- [x] **Windows Shell Firewall**: Comprehensive regex for `del`, `rd`, `runas`, `powershell -enc`, `certutil`.
+- [x] **Path Canonicalization**: Unified `\` to `/` normalization for firewall matching.
+- [ ] **Security Verification**: Perform aggressive coverage testing to ensure sandbox escape attempts are blocked.
+- [x] **macOS TCC Integration**: Pre-flight checks for Full Disk Access/Input Monitoring.
+- [x] **macOS Seatbelt**: Hardened profiles denying access to Keychains, Safari data, and private docs.
+
+---
+
+## 🟡 Phase 2: HIGH - Architecture & Knowledge (Engram V2)
+*Objective: Scale the engine to handle massive swarm missions with extreme memory efficiency.*
+
+### 2.1 "Fat Core" Slimming & Modularity
+- [x] **Crate Decoupling**: Extract `connectors`, `security`, `runtimes`, `skills`, `knowledge`, `mcp`, `auth` into standalone crates.
+- [x] **Filesystem Hygiene**: Move all artifacts (`.log`, `.json`, `.pid`) to the isolated `/data` directory.
+- [ ] **Cross-Crate Interface Verification**: Ensure the `Bus/Traits` abstraction holds under the new runtime isolation.
+
+### 2.2 Engram V2: Performance Knowledge
+- [x] **Storage Traits**: Generic `KVStore` and zero-copy `Bytes` fetching.
+- [x] **Quantization Tiering**: FP32 (Soul) -> U8 (Warm) -> INT4 (Cold/Ternary).
+- [x] **Hybrid Search**: BM25 + Vector Search with RRF (Reciprocal Rank Fusion).
+- [x] **Local Reranker**: Candle-based BGE-Reranker integration.
+- [x] **Model Pooling**: LRU-based swapping for RAG and Media models.
+- [x] **Local OCR**: Statically embedded WASM-based Tesseract for zero-setup offline OCR.
+
+### 2.3 Connectivity Context
+- [x] **Enterprise Connectors**: Feishu, Slack (Socket Mode), E-mail (SMTP/IMAP).
+- [x] **Unified Notification Center**: Broadcast alerts across all active channels.
+
+---
+
+## 🟢 Phase 3: MEDIUM - Multimedia & Autonomous Ops
+*Objective: Transform from a tool into a professional, proactive AI environment.*
+
+### 3.1 Local Media Runtime (Phase 6)
+- [x] **Model Management UI**: "Download/Load" buttons for local media runtimes.
+- [x] **Local Whisper (STT)**: Candle-based transcription with multi-language selector.
+- [x] **Local Piper (TTS)**: High-speed neural text-to-speech with curated local voices.
+- [ ] **Interactive "Light-Up" Logic**: Dynamic injection of Microphone button in UI based on model readiness.
+
+### 3.2 Autonomous Operations & Governance
+- [ ] **Skill Governance**: Per-agent skill allowlisting in `SOUL.md` to prune LLM context and prevent unauthorized tool calls.
+- [ ] **Unified Scheduler UI**: Manage Cron jobs, Event triggers (file watchers, webhooks), and execution history.
+- [ ] **Memory Tiering**: Automated "Distillation" tasks to move facts from logs to long-term permanent memory.
+- [ ] **A2A Swarm Protocol**: Zero-latency async bus for local multi-agent communication using official `AgentCard` formats.
+
+---
+
+## 🚀 Milestones & Delivery
+
+| Milestone | Core Target | 
+| :--- | :--- | 
+| **V1.0 (Basic)** | Zero-Admin Launch + Python Isolation + Basic Shell. |
+| **V1.1 (Full)** | Portable Toolchain + 15MB Mini Bash + Hardened Firewall. | 
+| **V1.2 (Enhanced)** | Optimized RAG + Enterprise Connectors + Professional UI Overhaul. |
+
+---
+
+## ⚠️ Key Risks & Mitigation
+
+1.  **Zero-Admin Escape**: Subprocesses might attempt to bypass Job Object limits.
+    *   *Mitigation*: Strict ShellFirewall rules combined with user-space identity enforcement.
+2.  **Toolchain Bloat**: Portable binaries (Bun/Git/GCC/Bash) could exceed 100MB.
+    *   *Mitigation*: Implement "Lite" (Framework only) vs "Full" (Auto-downloader) installation tiers.
+3.  **Cross-Platform Parity**: Hardcoded Linux commands (e.g., `df -m`) in legacy skills.
+    *   *Mitigation*: Mandate all core system calls use cross-platform Rust crates (`sysinfo`, `sha2`).
+
+---
+
+# 原版路线图：
 # AIMAXXING Roadmap
 
 This document outlines the planned future developments for the AIMAXXING project.
@@ -93,13 +189,14 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 
 *Constraint*: The entire AIMAXXING engine, including gateways, panels, and all spawned agent sandboxes, **MUST execute in user-space without Windows Administrator (`UAC`) privileges**.
 
-### 5.1 Unified Zero-Admin Runtimes (QuickJS + Pixi `m2-bash`)
-- **Goal**: Sever reliance on Git Bash or WSL by promoting embedded QuickJS, and safely containerizing legacy bash via Pixi's MSYS2 environment.
+### 5.1 Hybrid & Portable Zero-Admin Runtimes (uv + pixi + Portable Bash)
+- **Goal**: Minimize cold-start latency and disk footprint by splitting environment management between Pixi (Isolation), UV (Speed), and Local Portable Binaries.
 - **Tasks**:
-    - [x] Prioritize embedded `QuickJS` for cross-platform hook scripts (`JsHook`) in `core/src/hooks/engine.rs` instead of relying on `ShellHook`.
-    - [x] For `SKILL.md` scripts that strictly require `runtime: bash`, update `EnvManager` to automatically provision Pixi's `m2-bash` package (a portable MSYS2 environment). This guarantees 100% bug-free upstream bash compatibility without parsing errors.
-    - [x] Bypass system bash for Python-based skills on Windows: intercept executions and route them directly to the `uv` virtual environment managed by `Pixi` in `core/src/env/mod.rs`.
-    - [x] Ensure Windows paths (`\\?\` or C:\`) are precisely handled during bash context and `uv` environment provisioning in `runtimes/src/python_utils.rs`.
+    - [x] **Pixi Refactoring**: Restrict Pixi's role to *only* managing Python interpreter isolation (Conda environments). Eliminate the overhead of installing general tools like git/bash via Conda.
+    - [x] **UV Integration**: Use `uv` for lightning-fast `pip` package installation inside Pixi-managed environments.
+    - [x] **15MB Mini Git Bash**: Bundle a stripped-down, portable Git Bash (~15MB compressed) with core utilities (`bash`, `grep`, `awk`, `sed`) to provide 99% Bash script compatibility on Windows without the ~200MB MSYS2 footprint.
+    - [x] **Portable Toolchain**: Include portable binaries for `bun`, `git`, and basic `gcc` in the `infra/bin` directory, prioritized in the `PATH` by `EnvManager` in `core/src/env/mod.rs`.
+    - [x] **PowerShell First**: Promote PowerShell as the primary Windows shell when `runtime: shell` is used, utilizing automatic command mapping/aliases for common Bash idioms while falling back to Mini Git Bash for complex `.sh` scripts.
 
 ### 5.2 Cross-Platform Command Equivalents
 - **Goal**: Refactor hardcoded Linux commands in built-in tools to use cross-platform Rust equivalents or OS-aware branches.
@@ -128,11 +225,11 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 ### 6.1 Local Media Runtime (Self-Hosted Voice)
 - **Goal**: Provide a completely offline, zero-cost voice system (STT/TTS) leveraging local hardware, independent of cloud API subscriptions.
 - **Tasks**:
-    - [ ] **Optional Media Downloader**: Add "Download Media Components" buttons in the Model Management UI (sharing the same unified downloader logic as Llama models).
-    - [ ] **Local Whisper (STT)**: Implement a local speech-to-text runner (via `whisper.cpp` or `sherpa-onnx`) for instant transcription.
-        - [ ] **STT Language Model Selector**: In the Panel, provide a selector to choose which language model to download/activate (Chinese, English, Japanese, Korean, etc.) for transcription.
-        - [ ] **Space-Saving "Swap" Logic**: Only the selected transcription model is kept active in memory. Switching the target language triggers the Phase 3.5 Model Pool to swap models to save system resources.
-    - [ ] **Local Piper (TTS)**: Implement a high-speed, local neural text-to-speech engine using `Piper` with curated voice models.
+    - [x] **Optional Media Downloader**: Add "Download Media Components" buttons in the Model Management UI (sharing the same unified downloader logic as Llama models).
+    - [x] **Local Whisper (STT)**: Implement a local speech-to-text runner (via `whisper.cpp` or `sherpa-onnx`) for instant transcription.
+        - [x] **STT Language Model Selector**: In the Panel, provide a selector to choose which language model to download/activate (Chinese, English, Japanese, Korean, etc.) for transcription.
+        - [x] **Space-Saving "Swap" Logic**: Only the selected transcription model is kept active in memory. Switching the target language triggers the Phase 3.5 Model Pool to swap models to save system resources.
+    - [x] **Local Piper (TTS)**: Implement a high-speed, local neural text-to-speech engine using `Piper` with curated voice models.
     - [ ] **Interactive "Light-Up" Logic**: Automatically detect downloaded media runtimes and dynamically inject the 🎙️ (Microphone) button into the Agent chat interface only when ready.
 
 ### 6.2 Professional Navigation & Session Overhaul
@@ -197,8 +294,22 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
         - **Update**: Correct or overwrite outdated/incorrect stored facts.
 ---
 
-## Phase 11: Developer Experience
+## Phase 12: Secure Collaborative Ecosystem (Deep Sync)
 
-### 12.1 Documentation Overhaul
+- **Goal**: Enable frictionless, secure multi-user collaboration and cross-device syncing without manual key management.
+- **Tasks**:
+    - [ ] **One-Click Invitation Links**: Implement deep-link support (`aimaxxing://connect?host=...&token=...`) allowing users to join a session by simply clicking a URL.
+    - [ ] **Role-Based Access Control (RBAC)**: Introduce granular keys:
+        - **Admin Key**: Full control over settings, agents, and system shutdown.
+        - **Collaborator Key**: Can chat and use skills, but cannot modify agent configurations.
+        - **Guest Key**: Read-only access to conversation logs and agent status.
+    - [ ] **Key Management Dashboard**: A UI in the Panel to generate, name, and revoke specific collaboration keys.
+    - [ ] **Connection Persistence**: Securely store remote host tokens in the local `Vault` to prevent re-authentication after restarts.
+
+---
+
+## Phase 13: Developer Experience & Documentation
+
+### 13.1 Documentation Overhaul
 - [ ] Create a comprehensive "Developer's Guide" for writing new Skills/Tools.
 - [ ] Document the bit-level communication protocol between the `core` and the `panel` GUI.

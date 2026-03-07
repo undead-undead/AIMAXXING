@@ -334,12 +334,43 @@ impl NativeShellRuntime {
         env_prefix: Option<&Path>,
         models_path: Option<&Path>,
     ) {
-        let mut final_env = config.env_vars.clone();
+        use std::collections::HashMap;
+        let mut final_env = HashMap::new();
+
+        // 1. Inject infra/bin (Portable Toolchain) FIRST in PATH
+        let mut path_entries = Vec::new();
+
+        // Find the absolute infra/bin directory
+        // In the security crate, we don't have direct access to EnvManager instance easily here,
+        // but we can compute it from the process executable entry or env
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let infra_bin = exe_dir.join("infra").join("bin");
+                if infra_bin.exists() {
+                    path_entries.push(infra_bin.to_string_lossy().to_string());
+                } else {
+                    // Check if we are running in the 'data' structure
+                    let local_infra_bin = exe_dir.join("data").join("infra").join("bin");
+                    if local_infra_bin.exists() {
+                        path_entries.push(local_infra_bin.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
 
         if let Some(prefix) = env_prefix {
             let bin = prefix.join("bin").to_string_lossy().to_string();
-            let old_path = std::env::var("PATH").unwrap_or_default();
-            final_env.insert("PATH".to_string(), format!("{}:{}", bin, old_path));
+            path_entries.push(bin);
+        }
+
+        let old_path = std::env::var("PATH").unwrap_or_default();
+        if !path_entries.is_empty() {
+            let separator = if cfg!(windows) { ";" } else { ":" };
+            path_entries.push(old_path);
+            final_env.insert("PATH".to_string(), path_entries.join(separator));
+        }
+
+        if let Some(prefix) = env_prefix {
             final_env.insert("CONDA_PREFIX".to_string(), prefix.to_string_lossy().to_string());
         }
 
@@ -391,20 +422,30 @@ impl SkillRuntime for NativeShellRuntime {
             }
         }
 
-        // ─── Layer 0.5: Windows Bash Interception via Pixi ────────────────
+        // ─── Layer 0.5: Windows Mini-Bash & PowerShell First ──────────────
         #[cfg(target_os = "windows")]
         if interpreter == "bash" || interpreter == "sh" {
-            if let Some(prefix) = &env_prefix {
-                let msys_bash = prefix.join("Library").join("bin").join("bash.exe");
-                if msys_bash.exists() {
-                    interpreter = msys_bash.to_string_lossy().to_string();
-                } else {
-                    let standard_bash = prefix.join("bin").join("bash.exe");
-                    if standard_bash.exists() {
-                        interpreter = standard_bash.to_string_lossy().to_string();
+            // Priority 1: Check Portable Mini Git Bash (15MB version)
+            if let Ok(exe_path) = std::env::current_exe() {
+                if let Some(exe_dir) = exe_path.parent() {
+                    let portable_bash = exe_dir.join("infra").join("bin").join("git-bash").join("bash.exe");
+                    if portable_bash.exists() {
+                        interpreter = portable_bash.to_string_lossy().to_string();
+                    } else if let Ok(git_bash) = which::which("bash") {
+                        // Priority 2: Check system PATH
+                        interpreter = git_bash.to_string_lossy().to_string();
+                    } else if let Some(prefix) = &env_prefix {
+                        // Priority 3: Fallback to Pixi's MSYS bash (if available)
+                        let msys_bash = prefix.join("Library").join("bin").join("bash.exe");
+                        if msys_bash.exists() {
+                            interpreter = msys_bash.to_string_lossy().to_string();
+                        }
                     }
                 }
             }
+        } else if interpreter == "powershell" || (cfg!(windows) && interpreter == "shell") {
+            // Priority 4: PowerShell bypass for native shell commands
+            interpreter = "powershell.exe".to_string();
         }
 
         // ─── Layer 0.5: macOS TCC Pre-flight ──────────────────────────────

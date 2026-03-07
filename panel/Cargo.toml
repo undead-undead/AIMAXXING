@@ -37,9 +37,11 @@ eframe = { version = "0.31", default-features = false, features = ["glow", "pers
 tokio = { version = "1.43", features = ["sync", "macros", "io-util", "rt", "time"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["BinaryType", "Blob", "ErrorEvent", "FileReader", "MessageEvent", "ProgressEvent", "WebSocket"] }
+web-sys = { version = "0.3", features = ["BinaryType", "Blob", "ErrorEvent", "FileReader", "MessageEvent", "ProgressEvent", "WebSocket", "HtmlCanvasElement"] }
 console_error_panic_hook = "0.1"
 tracing-wasm = "0.2"
+log = "0.4"
+
 
 [features]
 default = []

@@ -20,6 +20,12 @@ openidconnect = "4.0.1"
 oauth2 = { version = "5.0.0", features = ["reqwest"] }
 reqwest = { workspace = true }
 keyring = "3.6.3"
+redb = { workspace = true }
+aes-gcm = { workspace = true }
+rand = { workspace = true }
+argon2 = { workspace = true }
+bincode = { workspace = true }
+hex = "0.4"
 
 [dev-dependencies]
 tempfile = "3.10"

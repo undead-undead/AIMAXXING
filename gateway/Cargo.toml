@@ -46,6 +46,8 @@ serde_yaml_ng = { workspace = true }
 dotenv = "0.15"
 reqwest = { workspace = true }
 urlencoding = "2.1"
+rand = "0.8"
+hex = "0.4"
 
 [features]
 default = ["cron"]

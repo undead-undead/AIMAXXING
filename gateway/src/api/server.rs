@@ -3,10 +3,12 @@ use axum::{
     routing::{get, post, delete},
     Router,
     Json,
-    extract::{State, Path, Query, ws::{WebSocketUpgrade, WebSocket, Message}},
+    extract::{State, Path, Query, ConnectInfo, ws::{WebSocketUpgrade, WebSocket, Message}},
     response::{Response, IntoResponse, sse::{Event, Sse}},
-    http::{StatusCode, Method, HeaderMap},
+    http::{StatusCode, Method, HeaderMap, Request},
+    middleware::{self, Next},
 };
+use std::net::SocketAddr;
 use serde_json::json;
 use tower_http::cors::{CorsLayer, Any};
 use std::sync::Arc;
@@ -22,10 +24,8 @@ use builtin_tools::SkillLoader;
 // use brain::error::Error; // Removed unused import
 use brain::prelude::Tool;
 
-use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever, ensure_ocr_assets};
+use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever, ensure_ocr_assets}; 
 use knowledge::IntentRouter;
-
-
 
 use crate::api::bridge::AgentBridge;
 use brain::bus::MessageBus;
@@ -56,6 +56,9 @@ pub struct AppState {
     pub cancel_tokens: Arc<dashmap::DashMap<String, tokio_util::sync::CancellationToken>>,
     pub persona_templates: Vec<crate::PersonaTemplate>,
     pub bus: Arc<MessageBus>,
+    pub engram: Arc<HybridSearchEngine>,
+    pub vault: Arc<auth::Vault>,
+    pub internal_key: String,
 }
 
 use std::path::PathBuf;
@@ -77,6 +80,8 @@ pub async fn start_server(
     retriever: Arc<HierarchicalRetriever>,
     factory: Arc<crate::api::factory::AgentFactory>,
     persona_templates: Vec<crate::PersonaTemplate>,
+    vault: Arc<auth::Vault>,
+    internal_key: String,
 ) -> Result<()> {
 
 
@@ -137,6 +142,9 @@ pub async fn start_server(
         cancel_tokens: Arc::new(dashmap::DashMap::new()),
         persona_templates,
         bus: bus.clone(),
+        engram: knowledge.clone(),
+        vault,
+        internal_key,
     };
 
     // --- Phase 3: Automatic OCR Asset Extraction ---
@@ -174,11 +182,19 @@ pub async fn start_server(
         .route("/api/logs/stream", get(logs_stream))
         .route("/api/logs/recent", get(get_recent_logs))
         .route("/api/terminal", get(terminal_handler))
+        // Vault (Secret Storage) - Phase 13-C
+        .route("/api/vault/keys", get(list_vault_keys))
+        .route("/api/vault/get/{key}", get(get_vault_value))
+        .route("/api/vault/set", post(set_vault_value))
+        .route("/api/vault/delete/{key}", axum::routing::delete(delete_vault_value))
         .route("/api/config/vault", post(save_vault_secret))
-        .route("/api/config/vault/{key}", delete(delete_vault_secret))
+        .route("/api/config/vault/{key}", axum::routing::delete(delete_vault_secret))
         // Model Management
         .route("/api/models/download", post(download_model))
         .route("/api/models/load", post(load_model))
+        // Media Management (Local STT / TTS)
+        .route("/api/media/transcribe", post(handle_transcribe))
+        .route("/api/media/synthesize", post(handle_synthesize))
         // ── New Panel API ────────────────────────────────────────────────
         .route("/api/channels/schema", get(get_channel_schema))
         .route("/api/channels/config", post(save_channel_config))
@@ -193,6 +209,7 @@ pub async fn start_server(
         .route("/api/system/doctor", get(doctor_api_handler))
         .route("/api/system/sandboxes", get(get_active_sandboxes))
         .route("/api/system/sandboxes/{pid}/kill", post(kill_sandbox))
+        .route("/api/system/security/key", get(get_internal_key))
         // ── Blueprint Gallery API (Phase 11-A) ─────────────────────────
         .route("/api/blueprints", get(list_blueprints))
         .route("/api/blueprints/{id}/apply", post(apply_blueprint))
@@ -210,6 +227,7 @@ pub async fn start_server(
         )
         .layer(TimeoutLayer::new(Duration::from_secs(60)))
         .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024)) // 10MB limit
+        .layer(middleware::from_fn_with_state(state.clone(), api_guard))
         .with_state(state.clone());
 
     // --- Message Bus & Connectors Initialization with Hot-Reload ---
@@ -421,7 +439,7 @@ pub async fn start_server(
 
     let listener = tokio::net::TcpListener::bind(addr).await
         .map_err(|e| anyhow::anyhow!("Failed to bind to {}: {}", addr, e))?;
-    axum::serve(listener, app)
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
 
@@ -687,16 +705,12 @@ async fn save_vault_secret(
     State(state): State<AppState>,
     Json(payload): Json<SaveVaultRequest>,
 ) -> Result<StatusCode, AppError> {
-    use brain::config::vault::{KeyringVault, SecretVault};
-    
-    // We target the KeyringVault specifically for persistent secure storage
-    let vault = KeyringVault::new("aimaxxing");
     let key = payload.key.trim().to_uppercase();
     let value = payload.value.trim();
     
-    // Keyring saving
-    vault.set(&key, &value)
-        .map_err(|e| AppError(anyhow::anyhow!("Failed to save secret to vault: {}", e)))?;
+    // Encrypted Vault saving (Phase 13-B)
+    state.vault.set(&key, value)
+        .map_err(|e| AppError(anyhow::anyhow!("Failed to save secret to encrypted vault: {}", e)))?;
         
     println!("ClawGateway: [VAULT] Successfully saved secret '{}'", key);
 
@@ -750,14 +764,10 @@ async fn delete_vault_secret(
     State(state): State<AppState>,
     Path(key): Path<String>,
 ) -> Result<StatusCode, AppError> {
-    use brain::config::vault::{KeyringVault, SecretVault};
-    
     let key = key.to_uppercase();
-    let vault = KeyringVault::new("aimaxxing");
     
-    // We don't have a direct 'delete' in the trait for all backends, 
-    // but KeyringVault supports it via the underlying keyring crate.
-    let _ = vault.delete(&key);
+    // Encrypted Vault delete
+    let _ = state.vault.delete(&key);
         
     println!("ClawGateway: [VAULT] Deleted secret '{}'", key);
 
@@ -1771,6 +1781,45 @@ async fn delete_session(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Vault Handlers (Secret Storage)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[derive(Deserialize)]
+struct VaultSetRequest {
+    key: String,
+    value: String,
+}
+
+async fn list_vault_keys(State(state): State<AppState>) -> impl IntoResponse {
+    match state.vault.list_keys() {
+        Ok(keys) => Json(json!({ "keys": keys })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))).into_response(),
+    }
+}
+
+async fn get_vault_value(State(state): State<AppState>, Path(key): Path<String>) -> impl IntoResponse {
+    match state.vault.get(&key) {
+        Ok(Some(val)) => Json(json!({ "value": val })).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, Json(json!({ "error": "Key not found" }))).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))).into_response(),
+    }
+}
+
+async fn set_vault_value(State(state): State<AppState>, Json(req): Json<VaultSetRequest>) -> impl IntoResponse {
+    match state.vault.set(&req.key, &req.value) {
+        Ok(_) => Json(json!({ "status": "ok" })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))).into_response(),
+    }
+}
+
+async fn delete_vault_value(State(state): State<AppState>, Path(key): Path<String>) -> impl IntoResponse {
+    match state.vault.delete(&key) {
+        Ok(_) => Json(json!({ "status": "ok" })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))).into_response(),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Gateway Snapshot
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1790,6 +1839,11 @@ struct GatewaySnapshot {
     model_vram_usage_mb: usize,
     model_ram_limit_gb: u32,
     model_vram_limit_gb: u32,
+    // Media Status (Phase 6.1)
+    whisper_status: String,
+    piper_status: String,
+    // Security (Phase 1.0)
+    internal_key: String,
 }
 
 #[derive(Serialize)]
@@ -1815,31 +1869,30 @@ async fn gateway_snapshot(
         ConnectorStatus { name: "bark/im".into(), configured: config.connectors.im.is_some() },
     ];
 
-    let mut vault_keys = Vec::new();
-    let vault = brain::config::vault::KeyringVault::new("aimaxxing");
+    let mut vault_keys = state.vault.list_keys().unwrap_or_default();
+    // Prioritize standard keys (just helpful indicator)
     let standard = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "MINIMAX_API_KEY"];
-    for k in &standard {
-        use brain::config::vault::SecretVault;
-        if let Ok(Some(_)) = vault.get(k) {
-            vault_keys.push(k.to_string());
-        }
-    }
-    for p in &config.providers.custom_providers {
-        use brain::config::vault::SecretVault;
-        let k = format!("{}_API_KEY", p.to_uppercase());
-        if let Ok(Some(_)) = vault.get(&k) {
-            if !vault_keys.contains(&k) {
-                vault_keys.push(k);
-            }
+    for k in standard {
+        if !vault_keys.contains(&k.to_string()) && std::env::var(k).is_ok() {
+            vault_keys.push(format!("{}(ENV)", k));
         }
     }
 
-    let (model_ram_usage_mb, model_vram_usage_mb) = if let Some(pool) = state.knowledge.model_pool() {
+    let (model_ram_usage_mb, model_vram_usage_mb, whisper_loaded, piper_loaded) = if let Some(pool) = state.knowledge.model_pool() {
         let (ram, vram) = pool.current_usage();
-        (ram / 1024 / 1024, vram / 1024 / 1024)
+        let w_loaded = pool.is_whisper_loaded();
+        let p_loaded = pool.is_piper_loaded();
+        (ram / 1024 / 1024, vram / 1024 / 1024, w_loaded, p_loaded)
     } else {
-        (0, 0)
+        (0, 0, false, false)
     };
+
+    let model_dir = state.config_path.parent().unwrap().join("models");
+    let whisper_installed = model_dir.join("ggml-tiny.en").exists();
+    let piper_installed = model_dir.join("en_US-lessac-medium").exists();
+
+    let whisper_status = if whisper_loaded { "Loaded" } else if whisper_installed { "Installed" } else { "Not Found" };
+    let piper_status = if piper_loaded { "Loaded" } else if piper_installed { "Installed" } else { "Not Found" };
 
     Json(GatewaySnapshot {
         status: "ok",
@@ -1855,7 +1908,16 @@ async fn gateway_snapshot(
         model_vram_usage_mb,
         model_ram_limit_gb: config.knowledge.model_ram_limit_gb,
         model_vram_limit_gb: config.knowledge.model_vram_limit_gb,
+        whisper_status: whisper_status.into(),
+        piper_status: piper_status.into(),
+        internal_key: state.internal_key.clone(),
     })
+}
+
+async fn get_internal_key(
+    State(state): State<AppState>,
+) -> Json<serde_json::Value> {
+    Json(json!({ "internal_key": state.internal_key }))
 }
 
 // ── Skill Install Handler ─────────────────────────────────────────────────
@@ -2697,4 +2759,122 @@ async fn load_model(
         tracing::warn!("Vector feature not enabled, cannot load model.");
         Err(StatusCode::NOT_IMPLEMENTED)
     }
+}
+#[derive(Serialize)]
+pub struct TranscribeResponse {
+    pub text: String,
+}
+
+#[derive(Deserialize)]
+pub struct SynthesizeRequest {
+    pub text: String,
+    pub voice_id: Option<String>,
+}
+
+pub async fn handle_transcribe(
+    State(state): State<AppState>,
+    body: axum::body::Bytes,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let audio_data = body.to_vec();
+
+    if audio_data.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "No audio file provided".into()));
+    }
+
+    // Default whisper model (for MVP, hardcode or fetch from config in future integration)
+    let whisper_model = "ggml-tiny.en";
+    
+    // Acquire the whisper model from ModelPool
+    let whisper_arc = state
+        .engram
+        .model_pool()
+        .expect("Model pool not initialized")
+        .get_whisper(whisper_model, || {
+            let model_dir = state
+                .config_path
+                .parent()
+                .unwrap()
+                .join("models")
+                .join(whisper_model);
+            engram::stt::whisper::LocalWhisper::load_local(&model_dir)
+        })
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load Whisper: {}", e)))?;
+
+    // Perform transcription
+    let mut whisper = whisper_arc.write(); // RwLock write lock
+    let text = whisper
+        .transcribe(&audio_data)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Transcription failed: {}", e)))?;
+
+    Ok(Json(TranscribeResponse { text }))
+}
+
+pub async fn handle_synthesize(
+    State(state): State<AppState>,
+    Json(payload): Json<SynthesizeRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    if payload.text.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Text cannot be empty".into()));
+    }
+
+    // Default piper voice model for MVP
+    let piper_model = payload.voice_id.unwrap_or_else(|| "en_US-lessac-medium".to_string());
+    
+    // Acquire the piper model from ModelPool
+    let piper_arc = state
+        .engram
+        .model_pool()
+        .expect("Model pool not initialized")
+        .get_piper(&piper_model, || {
+            let model_dir = state
+                .config_path
+                .parent()
+                .unwrap()
+                .join("models")
+                .join(&piper_model);
+            engram::tts::piper::LocalPiper::load_local(&model_dir)
+        })
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load Piper: {}", e)))?;
+
+    let output_wav = piper_arc
+        .synthesize(&payload.text)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Synthesis failed: {}", e)))?;
+
+    Ok((
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "audio/x-raw", // Piper raw PCM out
+        )],
+        output_wav,
+    ))
+}
+
+async fn api_guard(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+    req: axum::extract::Request,
+    next: Next,
+) -> Response {
+    // 1. Localhost bypass (Roadmap Phase 1.0)
+    if addr.ip().is_loopback() {
+        return next.run(req).await;
+    }
+
+    // 2. Public / Webhook / Health bypass
+    let path = req.uri().path();
+    if path == "/health" || path.starts_with("/api/v1/webhook") || path.starts_with("/api/auth") {
+        return next.run(req).await;
+    }
+
+    // 3. API Key check (Static Secret Exchange)
+    if let Some(key) = req.headers().get("X-API-Key") {
+        if let Ok(key_str) = key.to_str() {
+            if key_str == state.internal_key {
+                return next.run(req).await;
+            }
+        }
+    }
+
+    // 4. Deny with clear message
+    (StatusCode::UNAUTHORIZED, "Unauthorized: Invalid or missing X-API-Key for non-localhost connection").into_response()
 }

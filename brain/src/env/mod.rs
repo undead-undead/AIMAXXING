@@ -2,17 +2,32 @@ use crate::error::{Error, Result};
 use crate::skills::ModelSpec;
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
-use tracing::{error, info, warn};
+use tracing::{error, info, warn, debug};
+use tokio::sync::OnceCell;
+use std::sync::Arc;
 
 pub mod env_scanner;
 
 pub struct EnvManager {
     base_storage: PathBuf,
+    // Concurrency locks for tool downloads
+    pixi_lock: Arc<OnceCell<PathBuf>>,
+    uv_lock: Arc<OnceCell<PathBuf>>,
+    bun_lock: Arc<OnceCell<PathBuf>>,
+    git_lock: Arc<OnceCell<PathBuf>>,
+    gcc_lock: Arc<OnceCell<PathBuf>>,
 }
 
 impl EnvManager {
     pub fn new(base_storage: PathBuf) -> Self {
-        Self { base_storage }
+        Self { 
+            base_storage,
+            pixi_lock: Arc::new(OnceCell::new()),
+            uv_lock: Arc::new(OnceCell::new()),
+            bun_lock: Arc::new(OnceCell::new()),
+            git_lock: Arc::new(OnceCell::new()),
+            gcc_lock: Arc::new(OnceCell::new()),
+        }
     }
 
     /// Returns the models directory for a given skill.
@@ -59,33 +74,31 @@ impl EnvManager {
             "linux-64"
         };
 
-        // Map standard dependency names to conda-forge counterparts
+        // Handle Portable Toolchain dependencies (Bun, Git, GCC)
         let mut pixi_deps = Vec::new();
         for d in &deps {
             match d.to_lowercase().as_str() {
                 "python" | "python3" => pixi_deps.push("python".to_string()),
-                "js" | "node" | "nodejs" | "ts" | "typescript" | "bun" => pixi_deps.push("bun".to_string()),
-                "c" | "gcc" | "cxx" => {
-                    pixi_deps.push("gcc_linux-64".to_string());
-                    pixi_deps.push("gxx_linux-64".to_string());
+                "bun" | "js" | "node" => {
+                    let _ = self.ensure_bun().await;
+                },
+                "git" => {
+                    let _ = self.ensure_git().await;
+                },
+                "gcc" | "c" | "c++" | "cpp" => {
+                    let _ = self.ensure_gcc().await;
                 },
                 "bash" | "sh" | "shell" => {
-                    if cfg!(target_os = "windows") {
-                        pixi_deps.push("m2-bash".to_string());
-                        // Optional: pull in m2-coreutils or m2-grep to give a full environment
-                        pixi_deps.push("m2-coreutils".to_string());
-                        pixi_deps.push("m2-grep".to_string());
-                        pixi_deps.push("m2-sed".to_string());
-                        pixi_deps.push("m2-gawk".to_string());
-                        pixi_deps.push("m2-curl".to_string());
-                    } else {
-                        // On Linux/Mac, rely on system bash implicitly, no conda pkg usually needed,
-                        // but if they really requested bash via conda we can add `bash`
-                        pixi_deps.push("bash".to_string());
-                    }
+                    #[cfg(target_os = "windows")]
+                    let _ = self.ensure_git().await; // Git (MinGit) provides bash on Windows
                 },
-                _ => pixi_deps.push(d.clone()),
+                _ => {}
             }
+        }
+
+        // If no explicit python but use_browser is true, we still need python for playwright
+        if pixi_deps.is_empty() && use_browser {
+            pixi_deps.push("python".to_string());
         }
 
         // Create a minimal pixi.toml (modern workspace format)
@@ -159,6 +172,30 @@ platforms = ["{}"]
             let err = String::from_utf8_lossy(&output.stderr);
             error!("Pixi install failed: {}", err);
             return Err(Error::Internal(format!("Pixi install failed: {}", err)));
+        }
+
+        // --- Phase 1.1: UV Integration (Fast Pip) ---
+        // Install Python dependencies that weren't in pixi_deps using uv
+        let pip_deps: Vec<String> = deps.iter()
+            .filter(|d| !pixi_deps.contains(d))
+            .filter(|d| !["bun", "git", "bash", "sh", "gcc"].contains(&d.to_lowercase().as_str()))
+            .cloned()
+            .collect();
+
+        if !pip_deps.is_empty() {
+            info!(skill = %skill_id, "Installing pip dependencies via UV...");
+            let uv_bin = self.ensure_uv().await?;
+            let mut uv_cmd = Command::new(&pixi_bin);
+            uv_cmd.arg("run").arg(&uv_bin).arg("pip").arg("install");
+            for d in &pip_deps {
+                uv_cmd.arg(d);
+            }
+            uv_cmd.arg("--manifest-path").arg(env_path.join("pixi.toml"));
+            
+            let uv_out = uv_cmd.output().await.map_err(|e| Error::Internal(format!("Failed to run uv: {}", e)))?;
+            if !uv_out.status.success() {
+                warn!("UV pip install warning: {}", String::from_utf8_lossy(&uv_out.stderr));
+            }
         }
 
         // Browser installation (Playwright)
@@ -312,6 +349,20 @@ platforms = ["{}"]
         Ok(())
     }
 
+    pub fn get_infra_bin_dir(&self) -> PathBuf {
+        self.base_storage.parent()
+            .map(|p| p.join("infra").join("bin"))
+            .unwrap_or_else(|| self.base_storage.clone())
+    }
+
+    /// Returns the directory where tools might be bundled with the application EXE
+    pub fn get_bundled_bin_dir(&self) -> Option<PathBuf> {
+        std::env::current_exe().ok()?
+            .parent()?
+            .join("infra").join("bin")
+            .into()
+    }
+
     /// Compute SHA256 checksum of a file natively using the sha2 crate.
     async fn compute_sha256(&self, path: &Path) -> Result<String> {
         use sha2::{Digest, Sha256};
@@ -348,10 +399,7 @@ platforms = ["{}"]
         let required_bytes = required_mb * 1024 * 1024;
         let required_with_buffer = required_bytes + (100 * 1024 * 1024); // 100MB buffer
         
-        // sysinfo needs to enumerate disks
         let disks = Disks::new_with_refreshed_list();
-        
-        // Find the disk containing the path
         let mut target_disk = None;
         let mut longest_match = 0;
         
@@ -359,7 +407,8 @@ platforms = ["{}"]
         
         for disk in &disks {
             let mount_point = disk.mount_point().to_string_lossy().to_string();
-            if path_str.starts_with(&mount_point) && mount_point.len() > longest_match {
+            // Match the mount point that is a prefix of our path
+            if path_str.starts_with(&mount_point) && mount_point.len() >= longest_match {
                 longest_match = mount_point.len();
                 target_disk = Some(disk);
             }
@@ -368,96 +417,336 @@ platforms = ["{}"]
         if let Some(disk) = target_disk {
             let available_bytes = disk.available_space();
             if available_bytes < required_with_buffer {
+                error!("Disk space check failed: {} MB available, {} MB required", available_bytes / 1024 / 1024, required_mb);
                 return Err(Error::Internal(format!(
                     "Insufficient disk space: {} MB available, {} MB required for model",
                     available_bytes / 1024 / 1024,
                     required_mb
                 )));
             }
-        } else {
-            warn!("Could not determine mount point for {}, skipping free space check.", path.display());
         }
 
         Ok(())
     }
 
+    /// Ensure directory is writable, fallback to temp if not.
+    pub async fn ensure_writable_dir(&self, dir: &Path) -> Result<PathBuf> {
+        if !dir.exists() {
+            let _ = tokio::fs::create_dir_all(dir).await;
+        }
+        
+        // Simple write test
+        let test_file = dir.join(".aimaxxing_write_test");
+        match tokio::fs::write(&test_file, b"test").await {
+            Ok(_) => {
+                let _ = tokio::fs::remove_file(&test_file).await;
+                Ok(dir.to_path_buf())
+            },
+            Err(_) => {
+                let temp_dir = std::env::temp_dir().join("aimaxxing-infra-fallback");
+                warn!("Directory {:?} not writable, falling back to {:?}", dir, temp_dir);
+                tokio::fs::create_dir_all(&temp_dir).await.map_err(|e| Error::Internal(format!("Failed to create fallback temp dir: {}", e)))?;
+                Ok(temp_dir)
+            }
+        }
+    }
+
     /// Ensure `uv` is available, downloading it if necessary.
     pub async fn ensure_uv(&self) -> Result<PathBuf> {
-        if let Ok(bin) = which::which("uv") {
-            return Ok(bin);
-        }
-
-        let bin_dir = self.base_storage.parent()
-            .map(|p| p.join("bin"))
-            .unwrap_or_else(|| self.base_storage.clone());
-        
-        if !bin_dir.exists() {
-            tokio::fs::create_dir_all(&bin_dir).await?;
-        }
-
-        let uv_bin = bin_dir.join(if cfg!(windows) { "uv.exe" } else { "uv" });
-        if uv_bin.exists() {
-            return Ok(uv_bin);
-        }
-
-        info!("uv not found. Downloading standalone uv binary...");
-        
-        let url = if cfg!(target_os = "windows") {
-            "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip"
-        } else if cfg!(target_os = "macos") {
-            if cfg!(target_arch = "aarch64") {
-                "https://github.com/astral-sh/uv/releases/latest/download/uv-aarch64-apple-darwin.tar.gz"
-            } else {
-                "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-apple-darwin.tar.gz"
+        self.uv_lock.get_or_init(|| async {
+            // 1. Check if bundled with installer (Offline-First)
+            if let Some(bundled_dir) = self.get_bundled_bin_dir() {
+                let uv_bundled = bundled_dir.join(if cfg!(windows) { "uv.exe" } else { "uv" });
+                if uv_bundled.exists() {
+                    debug!("Using bundled uv: {:?}", uv_bundled);
+                    return uv_bundled;
+                }
             }
-        } else {
-            "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz"
-        };
 
-        self.download_file(url, &uv_bin).await?;
-        
-        Ok(uv_bin)
+            // 2. Check if already in system PATH
+            if let Ok(bin) = which::which("uv") {
+                return bin;
+            }
+
+            // 3. Check if already provisioned in infra/bin
+            let bin_dir = self.ensure_writable_dir(&self.get_infra_bin_dir()).await.unwrap_or_else(|_| self.get_infra_bin_dir());
+            let uv_bin = bin_dir.join(if cfg!(windows) { "uv.exe" } else { "uv" });
+            if uv_bin.exists() {
+                return uv_bin;
+            }
+
+            // 4. Fallback: Download from GitHub (Lite version behavior)
+            info!("uv not found. Downloading standalone uv binary...");
+            let url = if cfg!(target_os = "windows") {
+                "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip"
+            } else if cfg!(target_os = "macos") {
+                if cfg!(target_arch = "aarch64") {
+                    "https://github.com/astral-sh/uv/releases/latest/download/uv-aarch64-apple-darwin.tar.gz"
+                } else {
+                    "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-apple-darwin.tar.gz"
+                }
+            } else {
+                "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz"
+            };
+
+            let _ = self.download_file(url, &uv_bin).await;
+            uv_bin
+        }).await;
+
+        let uv_bin = self.get_infra_bin_dir().join(if cfg!(windows) { "uv.exe" } else { "uv" });
+        // Final verification: check infra/bin OR bundled OR system
+        if uv_bin.exists() { return Ok(uv_bin); }
+        if let Some(bundled) = self.get_bundled_bin_dir().map(|d| d.join(if cfg!(windows) { "uv.exe" } else { "uv" })) {
+            if bundled.exists() { return Ok(bundled); }
+        }
+        which::which("uv").map_err(|_| Error::Internal("UV failed to initialize".into()))
     }
 
     /// Ensure `pixi` is available, downloading it if necessary.
     pub async fn ensure_pixi(&self) -> Result<PathBuf> {
-        if let Ok(bin) = which::which("pixi") {
-            return Ok(bin);
-        }
-
-        let bin_dir = self.base_storage.parent()
-            .map(|p| p.join("bin"))
-            .unwrap_or_else(|| self.base_storage.clone());
-
-        let pixi_bin = bin_dir.join(if cfg!(windows) { "pixi.exe" } else { "pixi" });
-        if pixi_bin.exists() {
-            return Ok(pixi_bin);
-        }
-
-        info!("pixi not found. Downloading standalone pixi binary...");
-        
-        let url = if cfg!(target_os = "windows") {
-            "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-pc-windows-msvc.exe"
-        } else if cfg!(target_os = "macos") {
-            if cfg!(target_arch = "aarch64") {
-                "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-aarch64-apple-darwin"
-            } else {
-                "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-apple-darwin"
+        self.pixi_lock.get_or_init(|| async {
+            // 1. Check bundled
+            if let Some(bundled_dir) = self.get_bundled_bin_dir() {
+                let pixi_bundled = bundled_dir.join(if cfg!(windows) { "pixi.exe" } else { "pixi" });
+                if pixi_bundled.exists() { return pixi_bundled; }
             }
+
+            // 2. Check system
+            if let Ok(bin) = which::which("pixi") {
+                return bin;
+            }
+
+            // 3. Check provisioned
+            let bin_dir = self.ensure_writable_dir(&self.get_infra_bin_dir()).await.unwrap_or_else(|_| self.get_infra_bin_dir());
+            let pixi_bin = bin_dir.join(if cfg!(windows) { "pixi.exe" } else { "pixi" });
+            if pixi_bin.exists() {
+                return pixi_bin;
+            }
+
+            // 4. Download
+            info!("pixi not found. Downloading standalone pixi binary...");
+            let url = if cfg!(target_os = "windows") {
+                "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-pc-windows-msvc.exe"
+            } else if cfg!(target_os = "macos") {
+                if cfg!(target_arch = "aarch64") {
+                    "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-aarch64-apple-darwin"
+                } else {
+                    "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-apple-darwin"
+                }
+            } else {
+                "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-unknown-linux-musl"
+            };
+
+            let _ = self.download_file(url, &pixi_bin).await;
+            
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(meta) = std::fs::metadata(&pixi_bin) {
+                    let mut perms = meta.permissions();
+                    perms.set_mode(0o755);
+                    let _ = std::fs::set_permissions(&pixi_bin, perms);
+                }
+            }
+            pixi_bin
+        }).await;
+
+        let pixi_bin = self.get_infra_bin_dir().join(if cfg!(windows) { "pixi.exe" } else { "pixi" });
+        if pixi_bin.exists() { Ok(pixi_bin) } else {
+             if let Some(bundled) = self.get_bundled_bin_dir().map(|d| d.join(if cfg!(windows) { "pixi.exe" } else { "pixi" })) {
+                if bundled.exists() { return Ok(bundled); }
+            }
+            which::which("pixi").map_err(|_| Error::Internal("Pixi failed to initialize".into()))
+        }
+    }
+
+    /// Ensure `bun` is available.
+    pub async fn ensure_bun(&self) -> Result<PathBuf> {
+        self.bun_lock.get_or_init(|| async {
+            // 1. Check bundled
+            if let Some(bundled_dir) = self.get_bundled_bin_dir() {
+                let bun_bundled = bundled_dir.join(if cfg!(windows) { "bun.exe" } else { "bun" });
+                if bun_bundled.exists() { return bun_bundled; }
+            }
+
+            // 2. Check provisioned
+            let bin_dir = self.ensure_writable_dir(&self.get_infra_bin_dir()).await.unwrap_or_else(|_| self.get_infra_bin_dir());
+            let bun_name = if cfg!(windows) { "bun.exe" } else { "bun" };
+            let bun_bin = bin_dir.join(bun_name);
+            if bun_bin.exists() { return bun_bin; }
+
+            // 3. Check system
+            if let Ok(path) = which::which("bun") { return path; }
+
+            // 4. Download
+            info!("bun not found. Downloading portable bun...");
+            let url = if cfg!(target_os = "windows") {
+                "https://github.com/oven-sh/bun/releases/download/bun-v1.2.4/bun-windows-x64.zip"
+            } else if cfg!(target_os = "macos") {
+                if cfg!(target_arch = "aarch64") {
+                    "https://github.com/oven-sh/bun/releases/download/bun-v1.2.4/bun-darwin-aarch64.zip"
+                } else {
+                    "https://github.com/oven-sh/bun/releases/download/bun-v1.2.4/bun-darwin-x64.zip"
+                }
+            } else {
+                "https://github.com/oven-sh/bun/releases/download/bun-v1.2.4/bun-linux-x64.zip"
+            };
+
+            let zip_path = bin_dir.join("bun.zip");
+            let _ = self.download_file(url, &zip_path).await;
+            let _ = self.extract_and_cleanup(&zip_path, &bin_dir).await;
+
+            bun_bin
+        }).await;
+
+        let bun_bin = self.get_infra_bin_dir().join(if cfg!(windows) { "bun.exe" } else { "bun" });
+        if bun_bin.exists() { Ok(bun_bin) } else {
+            if let Some(bundled) = self.get_bundled_bin_dir().map(|d| d.join(if cfg!(windows) { "bun.exe" } else { "bun" })) {
+                if bundled.exists() { return Ok(bundled); }
+            }
+            which::which("bun").map_err(|_| Error::Internal("Bun failed to initialize".into()))
+        }
+    }
+
+    /// Ensure `git` and `mini-bash` are available (Windows focused).
+    pub async fn ensure_git(&self) -> Result<PathBuf> {
+        self.git_lock.get_or_init(|| async {
+            // 1. Check bundled (Offline-First)
+            if let Some(bundled_dir) = self.get_bundled_bin_dir() {
+                #[cfg(target_os = "windows")]
+                let git_bundled = bundled_dir.join("git-bash").join("bin").join("git.exe");
+                #[cfg(not(target_os = "windows"))]
+                let git_bundled = bundled_dir.join("git");
+                
+                if git_bundled.exists() { return git_bundled; }
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                let bin_dir = self.ensure_writable_dir(&self.get_infra_bin_dir()).await.unwrap_or_else(|_| self.get_infra_bin_dir());
+                let git_bin = bin_dir.join("git-bash").join("bin").join("git.exe");
+                if git_bin.exists() { return git_bin; }
+                if let Ok(path) = which::which("git") { return path; }
+
+                info!("Portable Git (MinGit) not found. Downloading 20MB thumb version...");
+                let url = "https://github.com/git-for-windows/git/releases/download/v2.53.0.windows.1/MinGit-2.53.0-64-bit.zip";
+                let zip_path = bin_dir.join("mingit.zip");
+                let extract_to = bin_dir.join("git-bash");
+                
+                let _ = self.download_file(url, &zip_path).await;
+                let _ = self.extract_and_cleanup(&zip_path, &extract_to).await;
+                
+                git_bin
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                 which::which("git").unwrap_or_else(|_| PathBuf::from("/usr/bin/git"))
+            }
+        }).await;
+
+        #[cfg(target_os = "windows")]
+        {
+            let git_bin = self.get_infra_bin_dir().join("git-bash").join("bin").join("git.exe");
+            if git_bin.exists() { return Ok(git_bin); }
+             if let Some(bundled) = self.get_bundled_bin_dir().map(|d| d.join("git-bash").join("bin").join("git.exe")) {
+                if bundled.exists() { return Ok(bundled); }
+            }
+            which::which("git").map_err(|_| Error::Internal("Git failed to initialize".into()))
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            if let Ok(path) = which::which("git") { Ok(path) } else { Err(Error::Internal("Git not found".into())) }
+        }
+    }
+
+    /// Ensure `gcc` (MinGW) is available on Windows.
+    pub async fn ensure_gcc(&self) -> Result<PathBuf> {
+        self.gcc_lock.get_or_init(|| async {
+            #[cfg(target_os = "windows")]
+            {
+                let bin_dir = self.ensure_writable_dir(&self.get_infra_bin_dir()).await.unwrap_or_else(|_| self.get_infra_bin_dir());
+                let gcc_bin = bin_dir.join("mingw").join("bin").join("gcc.exe");
+                if gcc_bin.exists() { return gcc_bin; }
+                if let Ok(path) = which::which("gcc") { return path; }
+
+                info!("Portable GCC (w64devkit) not found. Downloading lightweight toolchain...");
+                // Version locked to 1.21.0 for stability
+                let url = "https://github.com/skeeto/w64devkit/releases/download/v1.21.0/w64devkit-1.21.0.zip";
+                let zip_path = bin_dir.join("mingw.zip");
+                let extract_to = bin_dir.join("mingw_temp");
+                
+                let _ = self.download_file(url, &zip_path).await;
+                let _ = self.extract_and_cleanup(&zip_path, &extract_to).await;
+                
+                // Move logic for subfolders
+                let actual_dir = extract_to.join("w64devkit");
+                if actual_dir.exists() {
+                    let _ = tokio::fs::rename(actual_dir, bin_dir.join("mingw")).await;
+                    let _ = tokio::fs::remove_dir_all(extract_to).await;
+                } else {
+                     let _ = tokio::fs::rename(extract_to, bin_dir.join("mingw")).await;
+                }
+                
+                gcc_bin
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                which::which("gcc").unwrap_or_else(|_| PathBuf::from("/usr/bin/gcc"))
+            }
+        }).await;
+
+        #[cfg(target_os = "windows")]
+        {
+            let gcc_bin = self.get_infra_bin_dir().join("mingw").join("bin").join("gcc.exe");
+            if gcc_bin.exists() { Ok(gcc_bin) } else { Err(Error::Internal("GCC failed to initialize".into())) }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            if let Ok(path) = which::which("gcc") { Ok(path) } else { Err(Error::Internal("GCC not found".into())) }
+        }
+    }
+
+    /// Internal helper to extract zip files using PowerShell (Windows) or unzip (Unix)
+    /// to avoid adding extra Rust dependencies for binary size.
+    async fn extract_and_cleanup(&self, zip_path: &Path, dest: &Path) -> Result<()> {
+        if !dest.exists() {
+            tokio::fs::create_dir_all(dest).await?;
+        }
+
+        info!("Extracting {} to {}...", zip_path.display(), dest.display());
+
+        let status = if cfg!(target_os = "windows") {
+            // Enhanced PowerShell command with WindowStyle Hidden and explicit error checking
+            Command::new("powershell")
+                .arg("-NoProfile")
+                .arg("-NonInteractive")
+                .arg("-WindowStyle").arg("Hidden")
+                .arg("-Command")
+                .arg(format!(
+                    "Expand-Archive -Path '{}' -DestinationPath '{}' -Force; if (!$?) {{ exit 1 }}",
+                    zip_path.display(),
+                    dest.display()
+                ))
+                .status()
+                .await
         } else {
-            "https://github.com/prefix-dev/pixi/releases/latest/download/pixi-x86_64-unknown-linux-musl"
+            Command::new("unzip")
+                .arg("-o")
+                .arg(zip_path)
+                .arg("-d")
+                .arg(dest)
+                .status()
+                .await
         };
 
-        self.download_file(url, &pixi_bin).await?;
-        
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = tokio::fs::metadata(&pixi_bin).await?.permissions();
-            perms.set_mode(0o755);
-            tokio::fs::set_permissions(&pixi_bin, perms).await?;
+        match status {
+            Ok(s) if s.success() => {
+                let _ = tokio::fs::remove_file(zip_path).await;
+                Ok(())
+            },
+            _ => Err(Error::Internal(format!("Failed to extract {}", zip_path.display()))),
         }
-
-        Ok(pixi_bin)
     }
 }

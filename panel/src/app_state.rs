@@ -154,6 +154,11 @@ pub struct AppState {
     pub voice_tts_voice: String,
     pub voice_local_tts_enabled: bool,
     pub voice_local_tts_path: String,
+    pub whisper_model: String,
+    pub whisper_language: String,
+    pub whisper_status: Option<String>,
+    pub piper_voice: String,
+    pub piper_status: Option<String>,
 
     // ── Structured log entries ────────────────────────────────────────────
     pub log_entries: Vec<LogEntry>,
@@ -250,6 +255,7 @@ pub struct AppState {
 
     // ── Local Model Resource Management ─────────────────────────────────────
     pub model_vram_limit_gb: u32,
+    pub model_ram_limit_gb: u32,
 
     // ── Blueprint Gallery state (Phase 11-A) ────────────────────────
     pub blueprints: Vec<BlueprintInfo>,
@@ -322,8 +328,10 @@ impl LogLevelFilter {
 impl AppState {
     pub fn new() -> Self {
         let url = load_saved_url().unwrap_or_else(|| "http://localhost:3000".to_string());
-        let (tab, night_mode, language, v_model, v_persona, v_local_en, v_local_path) =
-            load_saved_config();
+        let saved = load_saved_config();
+        let tab = saved.tab;
+        let night_mode = saved.night_mode;
+        let language = saved.language;
         let client = GatewayClient::new(url.clone());
 
         // Pre-populate vault with common key names
@@ -404,10 +412,17 @@ impl AppState {
             deleted_vault_keys: std::collections::HashSet::new(),
 
             voice_tts_provider: "openai".to_string(),
-            voice_tts_model: v_model,
-            voice_tts_voice: v_persona,
-            voice_local_tts_enabled: v_local_en,
-            voice_local_tts_path: v_local_path,
+            voice_tts_model: saved.voice_tts_model,
+            voice_tts_voice: saved.voice_tts_voice,
+            voice_local_tts_enabled: saved.voice_local_tts_enabled,
+            voice_local_tts_path: saved.voice_local_tts_path,
+            whisper_model: saved.whisper_model,
+            whisper_language: saved.whisper_language,
+            whisper_status: Some("Not Checked".to_string()),
+            piper_voice: saved.piper_voice,
+            piper_status: Some("Not Checked".to_string()),
+            model_ram_limit_gb: saved.model_ram_limit_gb,
+            model_vram_limit_gb: saved.model_vram_limit_gb,
             log_entries: vec![],
             log_filter_text: String::new(),
             log_level_filter: LogLevelFilter::all_on(),
@@ -448,7 +463,6 @@ impl AppState {
             persona_role_temperature: "0.7".to_string(),
             persona_souls_promise: None,
             persona_souls: vec!["assistant".to_string()], // assistant is always the minimum default
-            model_vram_limit_gb: 0,
             persona_templates: vec![],
             persona_templates_promise: None,
             chat_histories: std::collections::BTreeMap::new(),
@@ -555,29 +569,43 @@ fn save_url(url: &str) {
     }
 }
 
-pub fn load_saved_config() -> (ActiveTab, bool, Language, String, String, bool, String) {
-    let mut tab;
-    let mut night_mode;
-    let mut language;
-    let mut voice_tts_model;
-    let mut voice_tts_voice;
-    let mut voice_local_tts_enabled;
-    let mut voice_local_tts_path;
+pub struct SavedConfig {
+    pub tab: ActiveTab,
+    pub night_mode: bool,
+    pub language: Language,
+    pub voice_tts_model: String,
+    pub voice_tts_voice: String,
+    pub voice_local_tts_enabled: bool,
+    pub voice_local_tts_path: String,
+    pub whisper_model: String,
+    pub whisper_language: String,
+    pub piper_voice: String,
+    pub model_ram_limit_gb: u32,
+    pub model_vram_limit_gb: u32,
+}
 
-    tab = ActiveTab::Skills;
-    night_mode = true;
-    language = Language::En;
-    voice_tts_model = "tts-1".to_string();
-    voice_tts_voice = "alloy".to_string();
-    voice_local_tts_enabled = false;
-    voice_local_tts_path = String::new();
+pub fn load_saved_config() -> SavedConfig {
+    let mut config = SavedConfig {
+        tab: ActiveTab::Skills,
+        night_mode: true,
+        language: Language::En,
+        voice_tts_model: "tts-1".to_string(),
+        voice_tts_voice: "alloy".to_string(),
+        voice_local_tts_enabled: false,
+        voice_local_tts_path: String::new(),
+        whisper_model: "ggml-tiny.en".to_string(),
+        whisper_language: "en".to_string(),
+        piper_voice: "en_US-lessac-medium".to_string(),
+        model_ram_limit_gb: 4,
+        model_vram_limit_gb: 0,
+    };
 
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
             if let Ok(Some(storage)) = window.local_storage() {
                 if let Ok(Some(tab_str)) = storage.get_item("aimaxxing_active_tab") {
-                    tab = match tab_str.as_str() {
+                    config.tab = match tab_str.as_str() {
                         "Skills" => ActiveTab::Skills,
                         "Api" | "Vault" => ActiveTab::Api,
                         "Logs" => ActiveTab::Logs,
@@ -593,26 +621,41 @@ pub fn load_saved_config() -> (ActiveTab, bool, Language, String, String, bool, 
                     };
                 }
                 if let Ok(Some(mode_str)) = storage.get_item("aimaxxing_night_mode") {
-                    night_mode = mode_str == "true";
+                    config.night_mode = mode_str == "true";
                 }
                 if let Ok(Some(lang_str)) = storage.get_item("aimaxxing_language") {
-                    language = if lang_str == "Zh" {
+                    config.language = if lang_str == "Zh" {
                         Language::Zh
                     } else {
                         Language::En
                     };
                 }
                 if let Ok(Some(v)) = storage.get_item("aimaxxing_voice_model") {
-                    voice_tts_model = v;
+                    config.voice_tts_model = v;
                 }
                 if let Ok(Some(v)) = storage.get_item("aimaxxing_voice_persona") {
-                    voice_tts_voice = v;
+                    config.voice_tts_voice = v;
                 }
                 if let Ok(Some(v)) = storage.get_item("aimaxxing_voice_local_enabled") {
-                    voice_local_tts_enabled = v == "true";
+                    config.voice_local_tts_enabled = v == "true";
                 }
                 if let Ok(Some(v)) = storage.get_item("aimaxxing_voice_local_path") {
-                    voice_local_tts_path = v;
+                    config.voice_local_tts_path = v;
+                }
+                if let Ok(Some(v)) = storage.get_item("aimaxxing_whisper_model") {
+                    config.whisper_model = v;
+                }
+                if let Ok(Some(v)) = storage.get_item("aimaxxing_whisper_language") {
+                    config.whisper_language = v;
+                }
+                if let Ok(Some(v)) = storage.get_item("aimaxxing_piper_voice") {
+                    config.piper_voice = v;
+                }
+                if let Ok(Some(v)) = storage.get_item("aimaxxing_model_ram_limit_gb") {
+                    config.model_ram_limit_gb = v.parse().unwrap_or(4);
+                }
+                if let Ok(Some(v)) = storage.get_item("aimaxxing_model_vram_limit_gb") {
+                    config.model_vram_limit_gb = v.parse().unwrap_or(0);
                 }
             }
         }
@@ -623,8 +666,8 @@ pub fn load_saved_config() -> (ActiveTab, bool, Language, String, String, bool, 
         let path = config_dir().join("settings.json");
         if let Ok(content) = std::fs::read_to_string(path) {
             if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(t) = val.get("tab").and_then(|t| t.as_str()) {
-                    tab = match t {
+                if let Some(t_str) = val.get("tab").and_then(|t| t.as_str()) {
+                    config.tab = match t_str {
                         "Skills" => ActiveTab::Skills,
                         "Api" | "Vault" => ActiveTab::Api,
                         "Logs" => ActiveTab::Logs,
@@ -640,40 +683,47 @@ pub fn load_saved_config() -> (ActiveTab, bool, Language, String, String, bool, 
                     };
                 }
                 if let Some(m) = val.get("night_mode").and_then(|m| m.as_bool()) {
-                    night_mode = m;
+                    config.night_mode = m;
                 }
                 if let Some(l) = val.get("language").and_then(|l| l.as_str()) {
-                    language = if l == "Zh" {
+                    config.language = if l == "Zh" {
                         Language::Zh
                     } else {
                         Language::En
                     };
                 }
                 if let Some(v) = val.get("voice_model").and_then(|v| v.as_str()) {
-                    voice_tts_model = v.to_string();
+                    config.voice_tts_model = v.to_string();
                 }
                 if let Some(v) = val.get("voice_persona").and_then(|v| v.as_str()) {
-                    voice_tts_voice = v.to_string();
+                    config.voice_tts_voice = v.to_string();
                 }
                 if let Some(v) = val.get("voice_local_enabled").and_then(|v| v.as_bool()) {
-                    voice_local_tts_enabled = v;
+                    config.voice_local_tts_enabled = v;
                 }
                 if let Some(v) = val.get("voice_local_path").and_then(|v| v.as_str()) {
-                    voice_local_tts_path = v.to_string();
+                    config.voice_local_tts_path = v.to_string();
+                }
+                if let Some(v) = val.get("whisper_model").and_then(|v| v.as_str()) {
+                    config.whisper_model = v.to_string();
+                }
+                if let Some(v) = val.get("whisper_language").and_then(|v| v.as_str()) {
+                    config.whisper_language = v.to_string();
+                }
+                if let Some(v) = val.get("piper_voice").and_then(|v| v.as_str()) {
+                    config.piper_voice = v.to_string();
+                }
+                if let Some(v) = val.get("model_ram_limit_gb").and_then(|v| v.as_u64()) {
+                    config.model_ram_limit_gb = v as u32;
+                }
+                if let Some(v) = val.get("model_vram_limit_gb").and_then(|v| v.as_u64()) {
+                    config.model_vram_limit_gb = v as u32;
                 }
             }
         }
     }
 
-    (
-        tab,
-        night_mode,
-        language,
-        voice_tts_model,
-        voice_tts_voice,
-        voice_local_tts_enabled,
-        voice_local_tts_path,
-    )
+    config
 }
 
 pub fn save_config(state: &AppState) {
@@ -705,6 +755,17 @@ pub fn save_config(state: &AppState) {
                     },
                 );
                 let _ = storage.set_item("aimaxxing_voice_local_path", &state.voice_local_tts_path);
+                let _ = storage.set_item("aimaxxing_whisper_model", &state.whisper_model);
+                let _ = storage.set_item("aimaxxing_whisper_language", &state.whisper_language);
+                let _ = storage.set_item("aimaxxing_piper_voice", &state.piper_voice);
+                let _ = storage.set_item(
+                    "aimaxxing_model_ram_limit_gb",
+                    &state.model_ram_limit_gb.to_string(),
+                );
+                let _ = storage.set_item(
+                    "aimaxxing_model_vram_limit_gb",
+                    &state.model_vram_limit_gb.to_string(),
+                );
             }
         }
     }
@@ -719,6 +780,11 @@ pub fn save_config(state: &AppState) {
             "voice_persona": state.voice_tts_voice,
             "voice_local_enabled": state.voice_local_tts_enabled,
             "voice_local_path": state.voice_local_tts_path,
+            "whisper_model": state.whisper_model,
+            "whisper_language": state.whisper_language,
+            "piper_voice": state.piper_voice,
+            "model_ram_limit_gb": state.model_ram_limit_gb,
+            "model_vram_limit_gb": state.model_vram_limit_gb,
         });
         if let Ok(content) = serde_json::to_string_pretty(&dict) {
             let _ = std::fs::create_dir_all(config_dir());

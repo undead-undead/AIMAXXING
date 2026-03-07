@@ -1697,7 +1697,72 @@ impl ClawPanel {
 
             ui.add_space(16.0);
 
-            // ── Section: Local Voice Model ───────────────────────────────────
+            ui.add_space(16.0);
+
+            // ── Section: Local Whisper (STT) ───────────────────────────────────
+            egui::Frame::new()
+                .fill(self.theme_bg_deep())
+                .stroke(Stroke::new(1.0, palette::border(night)))
+                .corner_radius(egui::CornerRadius::same(8))
+                .inner_margin(egui::Margin::same(16))
+                .show(ui, |ui| {
+                    ui.label(
+                        RichText::new(t("speech.stt_section", lang))
+                            .strong()
+                            .color(palette::ACCENT),
+                    );
+                    ui.add_space(12.0);
+
+                    // Model Selection
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{}:", t("speech.model", lang)));
+                        let models = ["ggml-tiny.en", "ggml-base.en", "ggml-small.en"];
+                        for m in models {
+                            let is_sel = self.state.whisper_model == m;
+                            if ui.selectable_label(is_sel, m).clicked() {
+                                self.state.whisper_model = m.to_string();
+                                self.state.set_status("Whisper model updated", false);
+                                crate::app_state::save_config(&self.state);
+                            }
+                        }
+                    });
+                    ui.add_space(8.0);
+
+                    // Language Selection
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{}:", t("speech.lang", lang)));
+                        let langs = ["en", "zh", "auto"];
+                        for l in langs {
+                            let is_sel = self.state.whisper_language == l;
+                            if ui.selectable_label(is_sel, l).clicked() {
+                                self.state.whisper_language = l.to_string();
+                                self.state.set_status("Whisper language updated", false);
+                                crate::app_state::save_config(&self.state);
+                            }
+                        }
+                    });
+                    let whisper_status = self.state.whisper_status.clone();
+                    let whisper_model = self.state.whisper_model.clone();
+                    if let Some(status) = &whisper_status {
+                        ui.add_space(8.0);
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(status).small().color(palette::text_dim(night)));
+                            if status == "Not Found" {
+                                if ui.small_button("Download").clicked() {
+                                    self.do_download_model(_ctx, &whisper_model);
+                                }
+                            } else if status == "Installed" {
+                                if ui.small_button("Load").clicked() {
+                                    self.do_load_model(_ctx, &whisper_model);
+                                }
+                            }
+                        });
+                    }
+                });
+
+            ui.add_space(16.0);
+
+            // ── Section: Local Piper (TTS) ────────────────────────────────────
             egui::Frame::new()
                 .fill(self.theme_bg_deep())
                 .stroke(Stroke::new(1.0, palette::border(night)))
@@ -1705,7 +1770,11 @@ impl ClawPanel {
                 .inner_margin(egui::Margin::same(16))
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new(t("speech.local_model", lang)).strong().color(palette::ACCENT));
+                        ui.label(
+                            RichText::new(t("speech.tts_section", lang))
+                                .strong()
+                                .color(palette::ACCENT),
+                        );
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if ui.checkbox(&mut self.state.voice_local_tts_enabled, t("speech.enabled", lang)).changed() {
                                 self.state.set_status("Local speech toggled", false);
@@ -1715,18 +1784,38 @@ impl ClawPanel {
                     });
                     ui.add_space(12.0);
 
-                    ui.label(format!("{}:", t("speech.path", lang)));
-                    let path_edit = egui::TextEdit::singleline(&mut self.state.voice_local_tts_path)
-                        .hint_text("/path/to/local/model.bin")
-                        .desired_width(ui.available_width());
-                    if ui.add(path_edit).changed() {
-                        self.state.set_status("Local model path updated", false);
-                        crate::app_state::save_config(&self.state);
+                    // Voice Selection
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{}:", t("speech.voice", lang)));
+                        let voices = ["en_US-lessac-medium", "zh_CN-huayan-medium"];
+                        for v in voices {
+                            let is_sel = self.state.piper_voice == v;
+                            if ui.selectable_label(is_sel, v).clicked() {
+                                self.state.piper_voice = v.to_string();
+                                self.state.set_status("Piper voice updated", false);
+                                crate::app_state::save_config(&self.state);
+                            }
+                        }
+                    });
+                    let piper_status = self.state.piper_status.clone();
+                    let piper_voice = self.state.piper_voice.clone();
+                    if let Some(status) = &piper_status {
+                        ui.add_space(8.0);
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(status).small().color(palette::text_dim(night)));
+                            if status == "Not Found" {
+                                if ui.small_button("Download").clicked() {
+                                    self.do_download_model(_ctx, &piper_voice);
+                                }
+                            } else if status == "Installed" {
+                                if ui.small_button("Load").clicked() {
+                                    self.do_load_model(_ctx, &piper_voice);
+                                }
+                            }
+                        });
                     }
-                    ui.add_space(4.0);
-                    ui.label(RichText::new("Path to GGUF/ONNX voice model for local synthesis.").small().color(palette::text_dim(night)));
                 });
-            
+
             ui.add_space(24.0);
             
             ui.horizontal(|ui| {
@@ -1735,7 +1824,9 @@ impl ClawPanel {
                     let model = self.state.voice_tts_model.clone();
                     let voice = self.state.voice_tts_voice.clone();
                     let local_en = if self.state.voice_local_tts_enabled { "true" } else { "false" }.to_string();
-                    let local_path = self.state.voice_local_tts_path.clone();
+                    let whisper_model = self.state.whisper_model.clone();
+                    let whisper_lang = self.state.whisper_language.clone();
+                    let piper_voice = self.state.piper_voice.clone();
                     let ctx2 = _ctx.clone();
 
                     #[cfg(not(target_arch = "wasm32"))]
@@ -1743,7 +1834,9 @@ impl ClawPanel {
                         let _ = client.save_vault_secret("VOICE_TTS_MODEL", &model).await;
                         let _ = client.save_vault_secret("VOICE_TTS_VOICE", &voice).await;
                         let _ = client.save_vault_secret("VOICE_LOCAL_TTS_ENABLED", &local_en).await;
-                        let _ = client.save_vault_secret("VOICE_LOCAL_TTS_PATH", &local_path).await;
+                        let _ = client.save_vault_secret("WHISPER_MODEL", &whisper_model).await;
+                        let _ = client.save_vault_secret("WHISPER_LANGUAGE", &whisper_lang).await;
+                        let _ = client.save_vault_secret("PIPER_VOICE", &piper_voice).await;
                         ctx2.request_repaint();
                     });
                     #[cfg(target_arch = "wasm32")]
@@ -1751,7 +1844,9 @@ impl ClawPanel {
                         let _ = client.save_vault_secret("VOICE_TTS_MODEL", &model).await;
                         let _ = client.save_vault_secret("VOICE_TTS_VOICE", &voice).await;
                         let _ = client.save_vault_secret("VOICE_LOCAL_TTS_ENABLED", &local_en).await;
-                        let _ = client.save_vault_secret("VOICE_LOCAL_TTS_PATH", &local_path).await;
+                        let _ = client.save_vault_secret("WHISPER_MODEL", &whisper_model).await;
+                        let _ = client.save_vault_secret("WHISPER_LANGUAGE", &whisper_lang).await;
+                        let _ = client.save_vault_secret("PIPER_VOICE", &piper_voice).await;
                         ctx2.request_repaint();
                     });
                     self.state.set_status("Voice settings committed to Gateway Vault", false);
@@ -2663,8 +2758,10 @@ impl ClawPanel {
                             }
                         }
 
-                        // Sync Model Budgets
+                        // Sync Model Budgets & Media Status
                         self.state.model_vram_limit_gb = snap.model_vram_limit_gb;
+                        self.state.whisper_status = Some(snap.whisper_status.clone());
+                        self.state.piper_status = Some(snap.piper_status.clone());
                         
                         // Mark existing entries as saved if the backend has them
                         let standard = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "MINIMAX_API_KEY"];
@@ -3943,15 +4040,24 @@ impl ClawPanel {
                     .inner_margin(egui::Margin::same(16))
                     .show(ui, |ui| {
                         ui.vertical(|ui| {
-                                // VRAM Slider
-                                ui.horizontal(|ui| {
-                                    ui.label(RichText::new("GPU VRAM Limit:").strong());
-                                    let mut vram = self.state.model_vram_limit_gb;
-                                    if ui.add(egui::Slider::new(&mut vram, 0..=24).suffix(" GB")).changed() {
-                                        self.state.model_vram_limit_gb = vram;
-                                        self.do_save_model_budgets(ctx);
-                                    }
-                                });
+                            // RAM Slider
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("System RAM Limit:").strong());
+                                if ui.add(egui::Slider::new(&mut self.state.model_ram_limit_gb, 0..=128).suffix(" GB")).changed() {
+                                    self.do_save_model_budgets(ctx);
+                                }
+                            });
+                            ui.label(RichText::new(format!("Current RAM usage: {} MB", snap.model_ram_usage_mb)).small().color(palette::text_dim(self.state.night_mode)));
+
+                            ui.add_space(8.0);
+
+                            // VRAM Slider
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("GPU VRAM Limit:").strong());
+                                if ui.add(egui::Slider::new(&mut self.state.model_vram_limit_gb, 0..=24).suffix(" GB")).changed() {
+                                    self.do_save_model_budgets(ctx);
+                                }
+                            });
                             ui.label(RichText::new(format!("Current VRAM usage: {} MB", snap.model_vram_usage_mb)).small().color(palette::text_dim(self.state.night_mode)));
                         });
                     });
@@ -3964,13 +4070,28 @@ impl ClawPanel {
     fn do_save_model_budgets(&mut self, ctx: &egui::Context) {
         let client = self.state.client.clone();
         let vram = self.state.model_vram_limit_gb;
+        let ram = self.state.model_ram_limit_gb;
         let ctx2 = ctx.clone();
         
+        #[cfg(not(target_arch = "wasm32"))]
         spawn_task(&self.rt, async move {
             if let Ok(mut config) = client.get_config().await {
-                // Update knowledge.model_vram_limit_gb
+                // Update knowledge.model_vram_limit_gb and model_ram_limit_gb
                 if let Some(knowledge) = config.get_mut("knowledge") {
                     knowledge["model_vram_limit_gb"] = serde_json::json!(vram);
+                    knowledge["model_ram_limit_gb"] = serde_json::json!(ram);
+                    let _ = client.update_config(&config).await;
+                    ctx2.request_repaint();
+                }
+            }
+        });
+        #[cfg(target_arch = "wasm32")]
+        spawn_task(async move {
+            if let Ok(mut config) = client.get_config().await {
+                // Update knowledge.model_vram_limit_gb and model_ram_limit_gb
+                if let Some(knowledge) = config.get_mut("knowledge") {
+                    knowledge["model_vram_limit_gb"] = serde_json::json!(vram);
+                    knowledge["model_ram_limit_gb"] = serde_json::json!(ram);
                     let _ = client.update_config(&config).await;
                     ctx2.request_repaint();
                 }
@@ -4273,6 +4394,19 @@ impl ClawPanel {
 
                                             #[cfg(not(target_arch = "wasm32"))]
                                             spawn_task(&self.rt, async move {
+                                                println!("Panel: Sending config for channel '{}'...", channel_id);
+                                                match client.save_channel_config(&channel_id, values).await {
+                                                    Ok(_) => {
+                                                        println!("Panel: Config update SUCCESS for '{}'", channel_id);
+                                                    },
+                                                    Err(e) => {
+                                                        eprintln!("Panel: Config update FAILED for '{}': {}", channel_id, e);
+                                                    },
+                                                }
+                                                ctx2.request_repaint();
+                                            });
+                                            #[cfg(target_arch = "wasm32")]
+                                            spawn_task(async move {
                                                 println!("Panel: Sending config for channel '{}'...", channel_id);
                                                 match client.save_channel_config(&channel_id, values).await {
                                                     Ok(_) => {
@@ -4827,27 +4961,37 @@ impl ClawPanel {
         self.update_soul_fields_from_content();
     }
 
-    pub fn do_download_model(&mut self, ctx: &egui::Context, model_id: &str) {
+    pub fn do_download_model(&mut self, _ctx: &egui::Context, model_id: &str) {
+        let client = self.state.client.clone();
+        let mid = model_id.to_string();
+        let ctx2 = _ctx.clone();
+        
         #[cfg(not(target_arch = "wasm32"))]
-        {
-            let url = format!("{}/api/models/download", self.state.gateway_url);
-            let ctx2 = ctx.clone();
-            let mid = model_id.to_string();
-            spawn_task(&self.rt, async move {
-                let req_client = reqwest::Client::new();
-                let payload = serde_json::json!({
-                    "model_id": mid
-                });
-                match req_client.post(&url).json(&payload).send().await {
-                    Ok(res) => {
-                        tracing::info!("Model download started for {}: {:?}", mid, res.status());
-                    }
-                    Err(e) => {
-                        tracing::error!("Error starting model download for {}: {}", mid, e);
-                    }
-                }
-                ctx2.request_repaint();
-            });
-        }
+        spawn_task(&self.rt, async move {
+            let _ = client.download_model(&mid).await;
+            ctx2.request_repaint();
+        });
+        #[cfg(target_arch = "wasm32")]
+        spawn_task(async move {
+            let _ = client.download_model(&mid).await;
+            ctx2.request_repaint();
+        });
+    }
+
+    pub fn do_load_model(&mut self, _ctx: &egui::Context, model_id: &str) {
+        let client = self.state.client.clone();
+        let mid = model_id.to_string();
+        let ctx2 = _ctx.clone();
+        
+        #[cfg(not(target_arch = "wasm32"))]
+        spawn_task(&self.rt, async move {
+            let _ = client.load_model(&mid).await;
+            ctx2.request_repaint();
+        });
+        #[cfg(target_arch = "wasm32")]
+        spawn_task(async move {
+            let _ = client.load_model(&mid).await;
+            ctx2.request_repaint();
+        });
     }
 }

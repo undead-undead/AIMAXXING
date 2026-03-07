@@ -1,5 +1,5 @@
 use crate::error::Result;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
@@ -8,6 +8,10 @@ use std::time::Instant;
 use crate::embedder::Embedder;
 #[cfg(feature = "vector")]
 use crate::local_reranker::LocalCandleReranker;
+#[cfg(feature = "vector")]
+use crate::stt::whisper::LocalWhisper;
+#[cfg(feature = "vector")]
+use crate::tts::piper::LocalPiper;
 
 /// Types of models managed by the pool
 #[derive(Clone)]
@@ -16,6 +20,10 @@ pub enum ModelResource {
     Embedder(Arc<Embedder>),
     #[cfg(feature = "vector")]
     Reranker(Arc<LocalCandleReranker>),
+    #[cfg(feature = "vector")]
+    Whisper(Arc<RwLock<LocalWhisper>>),
+    #[cfg(feature = "vector")]
+    Piper(Arc<LocalPiper>),
 }
 
 impl ModelResource {
@@ -25,6 +33,10 @@ impl ModelResource {
             ModelResource::Embedder(e) => e.memory_size(),
             #[cfg(feature = "vector")]
             ModelResource::Reranker(r) => r.memory_size(),
+            #[cfg(feature = "vector")]
+            ModelResource::Whisper(w) => w.read().memory_size(),
+            #[cfg(feature = "vector")]
+            ModelResource::Piper(p) => p.memory_size(),
         }
     }
 
@@ -34,6 +46,10 @@ impl ModelResource {
             ModelResource::Embedder(e) => e.is_gpu(),
             #[cfg(feature = "vector")]
             ModelResource::Reranker(r) => r.is_gpu(),
+            #[cfg(feature = "vector")]
+            ModelResource::Whisper(w) => w.read().is_gpu(),
+            #[cfg(feature = "vector")]
+            ModelResource::Piper(p) => p.is_gpu(),
         }
     }
 }
@@ -85,6 +101,32 @@ impl ModelPool {
             }
         }
         (ram, vram)
+    }
+
+    pub fn is_whisper_loaded(&self) -> bool {
+        self.entries.lock().values().any(|e| {
+            #[cfg(feature = "vector")]
+            {
+                matches!(e.resource, ModelResource::Whisper(_))
+            }
+            #[cfg(not(feature = "vector"))]
+            {
+                false
+            }
+        })
+    }
+
+    pub fn is_piper_loaded(&self) -> bool {
+        self.entries.lock().values().any(|e| {
+            #[cfg(feature = "vector")]
+            {
+                matches!(e.resource, ModelResource::Piper(_))
+            }
+            #[cfg(not(feature = "vector"))]
+            {
+                false
+            }
+        })
     }
 
     /// Evict models until enough space is available for a new model.
@@ -206,6 +248,76 @@ impl ModelPool {
             key.to_string(),
             PoolEntry {
                 resource: ModelResource::Reranker(Arc::clone(&arc_model)),
+                last_used: Instant::now(),
+            },
+        );
+
+        Ok(arc_model)
+    }
+
+    #[cfg(feature = "vector")]
+    pub fn get_whisper(
+        &self,
+        key: &str,
+        loader: impl FnOnce() -> Result<LocalWhisper>,
+    ) -> Result<Arc<RwLock<LocalWhisper>>> {
+        let mut entries = self.entries.lock();
+
+        if let Some(entry) = entries.get_mut(key) {
+            if let ModelResource::Whisper(ref w) = entry.resource {
+                entry.last_used = Instant::now();
+                return Ok(Arc::clone(w));
+            }
+        }
+
+        drop(entries);
+        let model = loader()?;
+        let size = model.memory_size();
+        let is_gpu = model.is_gpu();
+
+        self.evict_for_space(size, is_gpu);
+
+        let mut entries = self.entries.lock();
+        let arc_model = Arc::new(RwLock::new(model));
+        entries.insert(
+            key.to_string(),
+            PoolEntry {
+                resource: ModelResource::Whisper(Arc::clone(&arc_model)),
+                last_used: Instant::now(),
+            },
+        );
+
+        Ok(arc_model)
+    }
+
+    #[cfg(feature = "vector")]
+    pub fn get_piper(
+        &self,
+        key: &str,
+        loader: impl FnOnce() -> Result<LocalPiper>,
+    ) -> Result<Arc<LocalPiper>> {
+        let mut entries = self.entries.lock();
+
+        if let Some(entry) = entries.get_mut(key) {
+            if let ModelResource::Piper(ref p) = entry.resource {
+                entry.last_used = Instant::now();
+                return Ok(Arc::clone(p));
+            }
+        }
+
+        drop(entries);
+        let model = loader()?;
+        let size = model.memory_size();
+        let is_gpu = model.is_gpu();
+
+        self.evict_for_space(size, is_gpu);
+
+        let mut entries = self.entries.lock();
+        let arc_model = Arc::new(model);
+        entries.insert(
+            key.to_string(),
+            PoolEntry {
+                resource: ModelResource::Piper(Arc::clone(&arc_model)),
                 last_used: Instant::now(),
             },
         );

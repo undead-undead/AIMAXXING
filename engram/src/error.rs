@@ -79,3 +79,15 @@ impl From<bincode::Error> for EngramError {
         EngramError::Serialization(e.to_string())
     }
 }
+
+impl From<anyhow::Error> for EngramError {
+    fn from(e: anyhow::Error) -> Self {
+        EngramError::Custom(e.to_string())
+    }
+}
+
+impl From<candle_core::Error> for EngramError {
+    fn from(e: candle_core::Error) -> Self {
+        EngramError::ModelLoad(e.to_string())
+    }
+}

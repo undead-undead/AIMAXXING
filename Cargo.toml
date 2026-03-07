@@ -90,6 +90,12 @@ tonic = "0.12"
 prost = "0.13"
 tonic-build = "0.12"
 
+# Database & Crypto
+redb = "2.1"
+aes-gcm = "0.10"
+rand = "0.8"
+argon2 = "0.5"
+
 [workspace.lints.rust]
 unsafe_code = "warn"
 

@@ -14,6 +14,8 @@ pub async fn run_doctor() -> anyhow::Result<()> {
         ("Vector DB Path", check_vectordb as fn() -> anyhow::Result<()>),
         ("RAG Engine Mode", check_rag_mode as fn() -> anyhow::Result<()>),
         ("Pixi Environment", check_pixi as fn() -> anyhow::Result<()>),
+        ("UV Fast-Pip", check_uv as fn() -> anyhow::Result<()>),
+        ("Portable Bash/Shell", check_bash as fn() -> anyhow::Result<()>),
         ("JS Runtime (Node/Bun)", check_node as fn() -> anyhow::Result<()>),
         ("Smithery ENV", check_env as fn() -> anyhow::Result<()>),
     ];
@@ -120,7 +122,8 @@ fn check_sandbox() -> anyhow::Result<()> {
 
     #[cfg(target_os = "windows")]
     {
-        // Job objects are built-in, no external tool to check usually.
+        // Job objects are built-in, but we check if we can initialize a mock one
+        // (Just a logic placeholder as Job Objects are always available in modern Windows)
     }
 
     Ok(())
@@ -182,20 +185,63 @@ fn check_pixi() -> anyhow::Result<()> {
         return Ok(());
     }
     
-    // Check locally managed bin
+    // Check locally managed infra/bin
     let base = std::env::var("AIMAXXING_DATA_DIR")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            dirs::data_local_dir()
-                .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
-                .join("aimaxxing")
-        });
-    let managed = base.join("bin").join(if cfg!(windows) { "pixi.exe" } else { "pixi" });
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    
+    let managed = base.join("infra").join("bin").join(if cfg!(windows) { "pixi.exe" } else { "pixi" });
         
     if managed.exists() {
         Ok(())
     } else {
-        Err(anyhow::anyhow!("pixi binary not found in PATH or standard locations"))
+        Err(anyhow::anyhow!("pixi binary not found in PATH or 'infra/bin' folder"))
+    }
+}
+
+fn check_uv() -> anyhow::Result<()> {
+    if which::which("uv").is_ok() {
+        return Ok(());
+    }
+    
+    let base = std::env::var("AIMAXXING_DATA_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    
+    let managed = base.join("infra").join("bin").join(if cfg!(windows) { "uv.exe" } else { "uv" });
+        
+    if managed.exists() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("uv binary not found. UV is required for fast pip installs."))
+    }
+}
+
+fn check_bash() -> anyhow::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        if which::which("bash").is_ok() {
+            return Ok(());
+        }
+        let base = std::env::var("AIMAXXING_DATA_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+        
+        let mini_bash = base.join("infra").join("bin").join("git-bash").join("bash.exe");
+        if mini_bash.exists() {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Mini-Bash not found in 'infra/bin/git-bash'. Complex shell skills might fail."))
+        }
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        if which::which("bash").is_ok() || which::which("sh").is_ok() {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("System bash or sh not found."))
+        }
     }
 }
 
@@ -204,19 +250,17 @@ fn check_node() -> anyhow::Result<()> {
         return Ok(());
     }
     
-    // Check locally managed bin
+    // Check locally managed infra/bin
     let base = std::env::var("AIMAXXING_DATA_DIR")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            dirs::data_local_dir()
-                .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
-                .join("aimaxxing")
-        });
-    let managed_bun = base.join("bin").join(if cfg!(windows) { "bun.exe" } else { "bun" });
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    
+    let managed_bun = base.join("infra").join("bin").join(if cfg!(windows) { "bun.exe" } else { "bun" });
+    let alternate_bun = base.join("bin").join(if cfg!(windows) { "bun.exe" } else { "bun" });
 
-    if managed_bun.exists() {
+    if managed_bun.exists() || alternate_bun.exists() {
         Ok(())
     } else {
-        Err(anyhow::anyhow!("Neither node nor bun found in PATH"))
+        Err(anyhow::anyhow!("Neither node nor bun found in PATH or 'infra/bin'"))
     }
 }

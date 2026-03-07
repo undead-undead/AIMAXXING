@@ -284,9 +284,25 @@ async fn main() -> Result<()> {
 
             use auth::{OAuthManager, FileTokenStore};
 
-            // Initialize OAuth manager
-            let token_store = Arc::new(FileTokenStore::new(base_dir.join("data").join("auth").join("tokens.json")));
-            let mut oauth_manager = OAuthManager::new(token_store);
+            // Initialize Encrypted Vault (Secret Storage)
+            let vault_path = base_dir.join("data").join("vault.redb");
+            let vault = Arc::new(auth::Vault::open(vault_path)?);
+            let token_store = Arc::new(auth::VaultTokenStore::new(Arc::clone(&vault)));
+            let mut oauth_manager = auth::OAuthManager::new(token_store);
+            
+            // Phase 1.0: Static Secret Exchange (Zero-Login Security)
+            let internal_key = if let Ok(Some(key)) = vault.get("GATEWAY_INTERNAL_KEY") {
+                key
+            } else {
+                // Generate a random 32-char hex key
+                let bytes: [u8; 16] = rand::random();
+                let new_key = hex::encode(bytes);
+                let _ = vault.set("GATEWAY_INTERNAL_KEY", &new_key);
+                info!("Generated new Gateway Internal Key for non-localhost security.");
+                new_key
+            };
+            // Export to environment for Panel to potentially read if in same process tree
+            std::env::set_var("AIMAXXING_INTERNAL_KEY", &internal_key);
             
             // Register OAuth providers (Google example)
             let google_id = std::env::var("GOOGLE_CLIENT_ID").ok();
@@ -413,6 +429,7 @@ async fn main() -> Result<()> {
                 Arc::clone(&loader), coordinator, oauth_manager, shared_config,
                 enabled_tools, config_path, heartbeat_path, log_tx,
                 knowledge_engine, retriever, factory, persona_config.personas,
+                vault, internal_key,
             ).await?;
         }
     }

@@ -32,6 +32,12 @@ pub mod simd_kernels;
 #[cfg(feature = "vector")]
 pub mod vector_store;
 
+// Media modules
+#[cfg(feature = "vector")]
+pub mod stt;
+#[cfg(feature = "vector")]
+pub mod tts;
+
 // Agent integration
 pub mod agent_memory;
 pub mod tool;

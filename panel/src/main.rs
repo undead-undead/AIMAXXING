@@ -7,7 +7,11 @@ mod app_state;
 mod i18n;
 
 use app::ClawPanel;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
 
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
     // 强制启动一个隔离的 Tokio 运行时
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -34,3 +38,30 @@ fn main() -> eframe::Result<()> {
         }),
     )
 }
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // Redirect `log` messages to `console.log` and friends:
+    eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+
+    let web_options = eframe::WebOptions::default();
+
+    wasm_bindgen_futures::spawn_local(async {
+        let canvas = web_sys::window()
+            .and_then(|w| w.document())
+            .and_then(|d| d.get_element_by_id("the_canvas_id"))
+            .and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok())
+            .expect("Failed to find canvas element");
+
+        eframe::WebRunner::new()
+            .start(
+                canvas,
+                web_options,
+                Box::new(|cc| Ok(Box::new(ClawPanel::new(cc)))),
+            )
+            .await
+            .expect("failed to start eframe");
+    });
+}
+
+

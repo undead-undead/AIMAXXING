@@ -1,10 +1,12 @@
 pub mod types;
 pub mod store;
 pub mod manager;
+pub mod vault;
 
 pub use types::{OAuthConfig, OAuthToken};
-pub use store::{TokenStore, FileTokenStore};
+pub use store::{TokenStore, FileTokenStore, VaultTokenStore};
 pub use manager::OAuthManager;
+pub use vault::Vault;
 
 #[cfg(test)]
 mod tests {

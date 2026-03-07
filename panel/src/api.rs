@@ -400,6 +400,10 @@ pub struct GatewaySnapshot {
     pub model_vram_usage_mb: usize,
     pub model_ram_limit_gb: u32,
     pub model_vram_limit_gb: u32,
+    #[serde(default)]
+    pub whisper_status: String,
+    #[serde(default)]
+    pub piper_status: String,
 }
 
 /// A single log entry with level/subsystem/message (parsed from JSON line)
@@ -641,6 +645,61 @@ impl GatewayClient {
     pub async fn cancel_task(&self) -> Result<()> {
         let url = format!("{}/api/cancel", self.base_url);
         self.client.post(&url).send().await?;
+        Ok(())
+    }
+
+    pub async fn transcribe_audio(&self, audio_data: Vec<u8>) -> Result<String> {
+        let url = format!("{}/api/media/transcribe", self.base_url);
+        // Instead of multipart, we send raw binary body 
+        // We will update the backend to accept raw bytes 
+        let resp = self.client.post(&url)
+            .header("Content-Type", "audio/wav")
+            .body(audio_data)
+            .send()
+            .await?;
+        
+        if resp.status().is_success() {
+            #[derive(serde::Deserialize)]
+            struct TranscribeResp { text: String }
+            let data: TranscribeResp = resp.json().await?;
+            Ok(data.text)
+        } else {
+            Err(anyhow::anyhow!("Failed to transcribe audio: {:?}", resp.text().await?))
+        }
+    }
+
+    pub async fn synthesize_text(&self, text: &str, voice_id: Option<&str>) -> Result<Vec<u8>> {
+        let url = format!("{}/api/media/synthesize", self.base_url);
+        let resp = self.client.post(&url)
+            .json(&serde_json::json!({
+                "text": text,
+                "voice_id": voice_id
+            }))
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            Ok(resp.bytes().await?.to_vec())
+        } else {
+            Err(anyhow::anyhow!("Failed to synthesize audio: {:?}", resp.text().await?))
+        }
+    }
+
+    pub async fn download_model(&self, model: &str) -> Result<()> {
+        let url = format!("{}/api/models/download", self.base_url);
+        self.client.post(&url)
+            .json(&serde_json::json!({ "model": model }))
+            .send()
+            .await?;
+        Ok(())
+    }
+
+    pub async fn load_model(&self, model: &str) -> Result<()> {
+        let url = format!("{}/api/models/load", self.base_url);
+        self.client.post(&url)
+            .json(&serde_json::json!({ "model": model }))
+            .send()
+            .await?;
         Ok(())
     }
 }

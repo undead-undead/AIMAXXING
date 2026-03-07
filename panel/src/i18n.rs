@@ -46,6 +46,9 @@ fn translate_en(key: &str) -> &str {
         "speech.voice" => "Voice Persona",
         "speech.path" => "Model Path",
         "speech.enabled" => "Enabled",
+        "speech.stt_section" => "Local Speech-to-Text (Whisper)",
+        "speech.tts_section" => "Local Text-to-Speech (Piper)",
+        "speech.lang" => "Language",
 
         // Skills Sub-tabs
         "skills.installed" => "Installed",
@@ -138,6 +141,9 @@ fn translate_zh(key: &str) -> &str {
         "speech.voice" => "预设音色",
         "speech.path" => "模型路径",
         "speech.enabled" => "启用",
+        "speech.stt_section" => "本地语音识别 (Whisper)",
+        "speech.tts_section" => "本地语音合成 (Piper)",
+        "speech.lang" => "识别语言",
 
         // Skills Sub-tabs
         "skills.installed" => "已安装",
