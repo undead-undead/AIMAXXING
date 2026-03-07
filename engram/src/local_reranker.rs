@@ -97,7 +97,7 @@ impl LocalCandleReranker {
 
     /// Score a single query-document pair
     fn score(&self, query: &str, document_text: &str) -> Result<f32> {
-        let mut tokenizer = self.tokenizer.lock().unwrap();
+        let tokenizer = self.tokenizer.lock().unwrap();
 
         // Truncate document text if too long (e.g. 512 total tokens minus query)
         // For BGE-Reranker, the format is generally: <s> query </s></s> document </s>
@@ -150,6 +150,17 @@ impl LocalCandleReranker {
         let score = 1.0 / (1.0 + (-raw_score).exp());
 
         Ok(score)
+    }
+
+    /// Estimated memory usage in bytes
+    pub fn memory_size(&self) -> usize {
+        // bge-reranker-v2-minica is ~150MB when loaded
+        150 * 1024 * 1024
+    }
+
+    /// Whether the model is running on GPU (VRAM)
+    pub fn is_gpu(&self) -> bool {
+        !matches!(self.device, Device::Cpu)
     }
 }
 

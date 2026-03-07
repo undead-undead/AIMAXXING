@@ -20,6 +20,8 @@ use brain::agent::message::{Message, Role, Content, ContentPart, ImageSource};
 
 use runtimes::WasmRuntime;
 use engram::ensure_ocr_assets;
+use brain::prelude::{Tool, ToolDefinition};
+use brain::error::Error;
 
 pub struct TextExtractTool {
     provider: Option<Arc<dyn Provider>>,

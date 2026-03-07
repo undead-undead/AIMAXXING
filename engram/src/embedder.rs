@@ -272,6 +272,18 @@ impl Embedder {
         self.dimension
     }
 
+    /// Estimated memory usage in bytes
+    pub fn memory_size(&self) -> usize {
+        // all-MiniLM-L6-v2 is ~23MB on disk (safetensors),
+        // but expands to ~90MB in memory when loaded as f32.
+        90 * 1024 * 1024
+    }
+
+    /// Whether the model is running on GPU (VRAM)
+    pub fn is_gpu(&self) -> bool {
+        !matches!(self.device, Device::Cpu)
+    }
+
     /// L2 normalize a vector (helper for tests)
     #[allow(dead_code)]
     fn normalize_vector(vec: &[f32]) -> Vec<f32> {

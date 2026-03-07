@@ -807,6 +807,15 @@ async fn update_config(
     }
     // ... update others ...
     config.server = new_config.server;
+    config.knowledge = new_config.knowledge.clone();
+
+    // Sync model memory budgets if they changed
+    if let Some(pool) = state.knowledge.model_pool() {
+        let ram_bytes = config.knowledge.model_ram_limit_gb as usize * 1024 * 1024 * 1024;
+        let vram_bytes = config.knowledge.model_vram_limit_gb as usize * 1024 * 1024 * 1024;
+        pool.set_budgets(ram_bytes, vram_bytes);
+        tracing::info!("ModelPool budgets updated: {}GB RAM, {}GB VRAM", config.knowledge.model_ram_limit_gb, config.knowledge.model_vram_limit_gb);
+    }
     
     // Sync skills
     *state.enabled_tools.write() = new_config.skills.enabled.clone();
@@ -1776,6 +1785,11 @@ struct GatewaySnapshot {
     custom_providers: Vec<String>,
     vault_keys: Vec<String>,
     agents: Vec<String>,
+    // Model Pooling (Phase 3.5)
+    model_ram_usage_mb: usize,
+    model_vram_usage_mb: usize,
+    model_ram_limit_gb: u32,
+    model_vram_limit_gb: u32,
 }
 
 #[derive(Serialize)]
@@ -1820,6 +1834,13 @@ async fn gateway_snapshot(
         }
     }
 
+    let (model_ram_usage_mb, model_vram_usage_mb) = if let Some(pool) = state.knowledge.model_pool() {
+        let (ram, vram) = pool.current_usage();
+        (ram / 1024 / 1024, vram / 1024 / 1024)
+    } else {
+        (0, 0)
+    };
+
     Json(GatewaySnapshot {
         status: "ok",
         version: env!("CARGO_PKG_VERSION"),
@@ -1830,6 +1851,10 @@ async fn gateway_snapshot(
         connectors,
         custom_providers: config.providers.custom_providers.clone(),
         vault_keys,
+        model_ram_usage_mb,
+        model_vram_usage_mb,
+        model_ram_limit_gb: config.knowledge.model_ram_limit_gb,
+        model_vram_limit_gb: config.knowledge.model_vram_limit_gb,
     })
 }
 
@@ -2621,10 +2646,9 @@ async fn load_model(
     State(state): State<AppState>,
     Json(payload): Json<LoadModelReq>,
 ) -> Result<Json<DownloadModelRes>, StatusCode> {
-    let model_dir = state.config_path.parent().unwrap().join("models").join(&payload.model_id);
-    
     #[cfg(feature = "vector")]
     {
+        let model_dir = state.config_path.parent().unwrap().join("models").join(&payload.model_id);
         tracing::info!("Attempting to load model {} from {:?}", payload.model_id, model_dir);
         
         if payload.model_id.contains("reranker") {

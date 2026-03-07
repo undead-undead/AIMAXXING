@@ -16,6 +16,7 @@ pub mod store;
 // Search modules
 pub mod fts;
 pub mod hybrid_search;
+pub mod model_pool;
 pub mod reranker;
 pub mod rrf;
 
@@ -59,6 +60,7 @@ pub use tool::KnowledgeSearchTool;
 
 pub use agent_memory::EngramMemory;
 pub use content_hash::{get_docid, hash_content, normalize_docid, validate_docid};
+pub use model_pool::{ModelPool, ModelResource};
 pub use virtual_path::VirtualPath;
 pub use watcher::FileWatcher;
 

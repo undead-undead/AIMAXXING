@@ -129,12 +129,25 @@ pub struct SkillsConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KnowledgeConfig {
     pub enable_vector: bool,
+    #[serde(default = "default_ram_limit")]
+    pub model_ram_limit_gb: u32,
+    #[serde(default = "default_vram_limit")]
+    pub model_vram_limit_gb: u32,
+}
+
+fn default_ram_limit() -> u32 {
+    4
+}
+fn default_vram_limit() -> u32 {
+    0
 }
 
 impl Default for KnowledgeConfig {
     fn default() -> Self {
         Self {
             enable_vector: true,
+            model_ram_limit_gb: 4,
+            model_vram_limit_gb: 0,
         }
     }
 }

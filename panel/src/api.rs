@@ -261,6 +261,24 @@ impl GatewayClient {
         let resp = self.client.get(&url).send().await?;
         Ok(resp.json::<Vec<PersonaTemplate>>().await?)
     }
+
+    /// Fetch full gateway configuration as JSON
+    pub async fn get_config(&self) -> Result<serde_json::Value> {
+        let url = format!("{}/api/config", self.base_url);
+        let resp = self.client.get(&url).send().await?;
+        Ok(resp.json::<serde_json::Value>().await?)
+    }
+
+    /// Update gateway configuration
+    pub async fn update_config(&self, config: &serde_json::Value) -> Result<()> {
+        let url = format!("{}/api/config", self.base_url);
+        let resp = self.client.post(&url).json(config).send().await?;
+        if !resp.status().is_success() {
+            let msg = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Config update failed: {}", msg);
+        }
+        Ok(())
+    }
 }
 
 /// A standalone HTTP client for fetching from ClawHub marketplace.
@@ -377,6 +395,11 @@ pub struct GatewaySnapshot {
     pub vault_keys: Vec<String>,
     #[serde(default)]
     pub agents: Vec<String>,
+    // Model Pooling (Phase 3.5)
+    pub model_ram_usage_mb: usize,
+    pub model_vram_usage_mb: usize,
+    pub model_ram_limit_gb: u32,
+    pub model_vram_limit_gb: u32,
 }
 
 /// A single log entry with level/subsystem/message (parsed from JSON line)

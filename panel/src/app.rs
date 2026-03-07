@@ -1620,7 +1620,6 @@ impl ClawPanel {
 
             ui.add_space(16.0);
 
-                });
 
             ui.add_space(16.0);
 
@@ -2663,6 +2662,9 @@ impl ClawPanel {
                                 });
                             }
                         }
+
+                        // Sync Model Budgets
+                        self.state.model_vram_limit_gb = snap.model_vram_limit_gb;
                         
                         // Mark existing entries as saved if the backend has them
                         let standard = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "MINIMAX_API_KEY"];
@@ -3921,6 +3923,57 @@ impl ClawPanel {
                         ui.add_space(4.0);
                     }
                 });
+            }
+
+            ui.add_space(16.0);
+            ui.separator();
+            ui.add_space(16.0);
+
+            // ── Local Model Resource Management ─────────────────────────────
+            ui.heading("Local Model Resource Management");
+            ui.add_space(4.0);
+            ui.label(RichText::new("Adjust video memory budget for local Large Language Models (LLMs).").small().color(palette::text_dim(self.state.night_mode)));
+            ui.add_space(8.0);
+
+            if let Some(snap) = self.state.snapshot.clone() {
+                egui::Frame::new()
+                    .fill(self.theme_bg_deep())
+                    .stroke(Stroke::new(1.0, palette::border(self.state.night_mode)))
+                    .corner_radius(egui::CornerRadius::same(8))
+                    .inner_margin(egui::Margin::same(16))
+                    .show(ui, |ui| {
+                        ui.vertical(|ui| {
+                                // VRAM Slider
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new("GPU VRAM Limit:").strong());
+                                    let mut vram = self.state.model_vram_limit_gb;
+                                    if ui.add(egui::Slider::new(&mut vram, 0..=24).suffix(" GB")).changed() {
+                                        self.state.model_vram_limit_gb = vram;
+                                        self.do_save_model_budgets(ctx);
+                                    }
+                                });
+                            ui.label(RichText::new(format!("Current VRAM usage: {} MB", snap.model_vram_usage_mb)).small().color(palette::text_dim(self.state.night_mode)));
+                        });
+                    });
+            } else {
+                ui.label("Connecting to gateway to retrieve model status...");
+            }
+        });
+    }
+
+    fn do_save_model_budgets(&mut self, ctx: &egui::Context) {
+        let client = self.state.client.clone();
+        let vram = self.state.model_vram_limit_gb;
+        let ctx2 = ctx.clone();
+        
+        spawn_task(&self.rt, async move {
+            if let Ok(mut config) = client.get_config().await {
+                // Update knowledge.model_vram_limit_gb
+                if let Some(knowledge) = config.get_mut("knowledge") {
+                    knowledge["model_vram_limit_gb"] = serde_json::json!(vram);
+                    let _ = client.update_config(&config).await;
+                    ctx2.request_repaint();
+                }
             }
         });
     }

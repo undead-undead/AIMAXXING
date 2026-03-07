@@ -7,9 +7,10 @@ use crate::embedder::{Embedder, EmbedderConfig};
 use crate::error::{EngramError, Result};
 #[cfg(feature = "vector")]
 use crate::local_reranker::LocalCandleReranker;
+use crate::model_pool::ModelPool;
 #[cfg(feature = "vector")]
 use crate::quant::QuantLevel;
-use crate::reranker::{NoOpReranker, Reranker};
+use crate::reranker::Reranker;
 use crate::rrf::{RrfConfig, RrfFusion};
 use crate::store::{Collection, Document, EngramStore};
 #[cfg(feature = "vector")]
@@ -73,18 +74,19 @@ pub struct HybridSearchEngine {
     #[cfg(feature = "vector")]
     vector_store: Option<Arc<VectorStore>>,
     #[cfg(feature = "vector")]
-    embedder: Option<Arc<Embedder>>,
-    reranker: Arc<dyn Reranker>,
+    model_pool: Option<Arc<ModelPool>>,
+    #[cfg(feature = "vector")]
+    reranker_override: Option<Arc<dyn Reranker>>,
     config: HybridSearchConfig,
 }
 
 impl HybridSearchEngine {
     /// Create a new hybrid search engine
-    pub fn new(config: HybridSearchConfig) -> Result<Self> {
+    pub fn new(config: HybridSearchConfig, model_pool: Option<Arc<ModelPool>>) -> Result<Self> {
         let store = Arc::new(EngramStore::new(&config.db_path)?);
 
         #[cfg(feature = "vector")]
-        let (vector_store, embedder) = {
+        let vector_store = {
             let vs_path = config.db_path.with_extension("vectors.bin");
             let kv = store.kv_arc();
             let vs = if vs_path.exists() {
@@ -97,51 +99,49 @@ impl HybridSearchEngine {
                     config.vector_metric.into(),
                 ))
             };
-
-            // Note: This might be heavy, so we might want to make it optional or lazy
-            let emb = Embedder::with_config(EmbedderConfig::default(), Some(kv)).ok();
-            (vs.map(Arc::new), emb.map(Arc::new))
+            vs.map(Arc::new)
         };
-
-        #[cfg(feature = "vector")]
-        let reranker: Arc<dyn Reranker> = {
-            let model_dir = config
-                .db_path
-                .parent()
-                .unwrap_or(&config.db_path)
-                .join("models")
-                .join("bge-reranker-v2-minica");
-            if model_dir.exists() && model_dir.join("model.safetensors").exists() {
-                match LocalCandleReranker::load_local(&model_dir) {
-                    Ok(r) => Arc::new(r),
-                    Err(e) => {
-                        tracing::warn!("Failed to load local reranker from {:?}: {}", model_dir, e);
-                        Arc::new(NoOpReranker)
-                    }
-                }
-            } else {
-                Arc::new(NoOpReranker)
-            }
-        };
-
-        #[cfg(not(feature = "vector"))]
-        let reranker: Arc<dyn Reranker> = Arc::new(NoOpReranker);
 
         Ok(Self {
             store,
             #[cfg(feature = "vector")]
             vector_store,
             #[cfg(feature = "vector")]
-            embedder,
-            reranker,
+            model_pool,
+            #[cfg(feature = "vector")]
+            reranker_override: None,
             config,
         })
     }
 
-    /// Set a custom reranker
-    pub fn with_reranker(mut self, reranker: Arc<dyn Reranker>) -> Self {
-        self.reranker = reranker;
+    /// Add a global model pool to the engine
+    pub fn with_model_pool(mut self, pool: Arc<ModelPool>) -> Self {
+        #[cfg(feature = "vector")]
+        {
+            self.model_pool = Some(pool);
+        }
         self
+    }
+
+    /// Set a custom reranker override
+    pub fn with_reranker(mut self, reranker: Arc<dyn Reranker>) -> Self {
+        #[cfg(feature = "vector")]
+        {
+            self.reranker_override = Some(reranker);
+        }
+        self
+    }
+
+    /// Get the model pool used by the engine
+    pub fn model_pool(&self) -> Option<Arc<ModelPool>> {
+        #[cfg(feature = "vector")]
+        {
+            self.model_pool.clone()
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            None
+        }
     }
 
     /// Index a document with differentiated quantization (Soul vs Background)
@@ -160,8 +160,19 @@ impl HybridSearchEngine {
             .store_document(collection, path, title, content, unverified)?;
 
         // 2. Vector indexing
-        if let (Some(vs), Some(emb)) = (&self.vector_store, &self.embedder) {
-            let embedding = emb.embed(content)?;
+        #[cfg(feature = "vector")]
+        if let Some(vs) = &self.vector_store {
+            let embedding = if let Some(pool) = &self.model_pool {
+                let emb = pool.get_embedder("default-embedder", || {
+                    let kv = self.store.kv_arc();
+                    Embedder::with_config(EmbedderConfig::default(), Some(kv))
+                })?;
+                emb.embed(content)?
+            } else {
+                return Err(EngramError::InvalidInput(
+                    "Model pool not initialized for vector indexing".into(),
+                ));
+            };
             vs.add_at_level(collection, path, title, 0, embedding, level)?;
         }
 
@@ -257,7 +268,31 @@ impl HybridSearchEngine {
         results.truncate(limit);
 
         // 4. Reranking (Cross-Encoder / Late Interaction)
-        let mut results = self.reranker.rerank(query, results)?;
+        #[cfg(feature = "vector")]
+        let mut results = if let Some(reranker) = &self.reranker_override {
+            reranker.rerank(query, results)?
+        } else if let Some(pool) = &self.model_pool {
+            let model_dir = self
+                .config
+                .db_path
+                .parent()
+                .unwrap_or(&self.config.db_path)
+                .join("models")
+                .join("bge-reranker-v2-minica");
+            if model_dir.exists() && model_dir.join("model.safetensors").exists() {
+                let reranker = pool.get_reranker("bge-reranker-v2-minica", || {
+                    LocalCandleReranker::load_local(&model_dir)
+                })?;
+                reranker.rerank(query, results)?
+            } else {
+                results
+            }
+        } else {
+            results
+        };
+
+        #[cfg(not(feature = "vector"))]
+        let results = results;
 
         // Re-rank indices after reranking
         for (i, r) in results.iter_mut().enumerate() {
@@ -337,7 +372,31 @@ impl HybridSearchEngine {
         results.truncate(limit);
 
         // 4. Reranking (Cross-Encoder / Late Interaction)
-        let mut results = self.reranker.rerank(query, results)?;
+        #[cfg(feature = "vector")]
+        let mut results = if let Some(reranker) = &self.reranker_override {
+            reranker.rerank(query, results)?
+        } else if let Some(pool) = &self.model_pool {
+            let model_dir = self
+                .config
+                .db_path
+                .parent()
+                .unwrap_or(&self.config.db_path)
+                .join("models")
+                .join("bge-reranker-v2-minica");
+            if model_dir.exists() && model_dir.join("model.safetensors").exists() {
+                let reranker = pool.get_reranker("bge-reranker-v2-minica", || {
+                    LocalCandleReranker::load_local(&model_dir)
+                })?;
+                reranker.rerank(query, results)?
+            } else {
+                results
+            }
+        } else {
+            results
+        };
+
+        #[cfg(not(feature = "vector"))]
+        let results = results;
 
         for (i, r) in results.iter_mut().enumerate() {
             r.rank = i + 1;

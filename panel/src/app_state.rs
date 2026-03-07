@@ -248,6 +248,9 @@ pub struct AppState {
     pub kill_sandbox_promise: Option<Promise<Result<(), String>>>,
     pub last_sandboxes_refresh_time: f64,
 
+    // ── Local Model Resource Management ─────────────────────────────────────
+    pub model_vram_limit_gb: u32,
+
     // ── Blueprint Gallery state (Phase 11-A) ────────────────────────
     pub blueprints: Vec<BlueprintInfo>,
     pub blueprints_promise: Option<Promise<Result<Vec<BlueprintInfo>, String>>>,
@@ -445,6 +448,7 @@ impl AppState {
             persona_role_temperature: "0.7".to_string(),
             persona_souls_promise: None,
             persona_souls: vec!["assistant".to_string()], // assistant is always the minimum default
+            model_vram_limit_gb: 0,
             persona_templates: vec![],
             persona_templates_promise: None,
             chat_histories: std::collections::BTreeMap::new(),

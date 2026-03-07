@@ -62,7 +62,7 @@ This document outlines the planned future developments for the AIMAXXING project
 - [x] (Optional) Integrate GPU acceleration for heavy RAG workloads.
 - **Tasks**:
     - [x] **Local Reranker**: Integrate lightweight Cross-Encoder models via `candle` (e.g., BGE-Reranker-v2-Minica).
-    - [ ] **Model Pooling**: Allow dynamic local model selection to save compute and API costs.
+    - [x] **Model Pooling**: Allow dynamic local model selection to save compute and API costs (LRU-based swapping).
     - [x] **Pipeline Update**: Coarse Search (BM25+HNSW) -> Precision Rerank -> Top-K.
 
 - **Upcoming/Candidate Features**:
@@ -130,6 +130,8 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 - **Tasks**:
     - [ ] **Optional Media Downloader**: Add "Download Media Components" buttons in the Model Management UI (sharing the same unified downloader logic as Llama models).
     - [ ] **Local Whisper (STT)**: Implement a local speech-to-text runner (via `whisper.cpp` or `sherpa-onnx`) for instant transcription.
+        - [ ] **STT Language Model Selector**: In the Panel, provide a selector to choose which language model to download/activate (Chinese, English, Japanese, Korean, etc.) for transcription.
+        - [ ] **Space-Saving "Swap" Logic**: Only the selected transcription model is kept active in memory. Switching the target language triggers the Phase 3.5 Model Pool to swap models to save system resources.
     - [ ] **Local Piper (TTS)**: Implement a high-speed, local neural text-to-speech engine using `Piper` with curated voice models.
     - [ ] **Interactive "Light-Up" Logic**: Automatically detect downloaded media runtimes and dynamically inject the 🎙️ (Microphone) button into the Agent chat interface only when ready.
 

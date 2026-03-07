@@ -12,7 +12,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 use mcp;
 use aimaxxing_gateway::api;
 use brain::agent::multi_agent::{Coordinator, AgentRole};
-use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever};
+use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever, ModelPool};
 
 
 // Providers and agent loading are now handled by AgentFactory in aimaxxing-gateway/src/api/factory.rs
@@ -322,9 +322,14 @@ async fn main() -> Result<()> {
                 ..Default::default()
             };
             
-            info!("Initializing search engine in background...");
+            info!("Initializing model pool and search engine...");
+            let model_pool = Arc::new(ModelPool::new(
+                app_config.knowledge.model_ram_limit_gb as usize * 1024 * 1024 * 1024,
+                app_config.knowledge.model_vram_limit_gb as usize * 1024 * 1024 * 1024,
+            ));
+            let model_pool_clone = Arc::clone(&model_pool);
             let engram_init = tokio::task::spawn_blocking(move || {
-                HybridSearchEngine::new(engram_config)
+                HybridSearchEngine::new(engram_config, Some(model_pool_clone))
             });
 
             // Wait for both Skill Loader and Search Engine
