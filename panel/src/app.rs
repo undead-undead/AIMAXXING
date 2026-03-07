@@ -1620,41 +1620,26 @@ impl ClawPanel {
 
             ui.add_space(16.0);
 
+                });
+
+            ui.add_space(16.0);
+
             egui::Frame::new()
                 .fill(self.theme_bg_deep())
                 .stroke(Stroke::new(1.0, palette::border(self.state.night_mode)))
                 .corner_radius(egui::CornerRadius::same(8))
                 .inner_margin(egui::Margin::same(16))
                 .show(ui, |ui| {
-                    ui.label(RichText::new("🎯 Semantic Reranking (Cross-Encoder)").strong().color(palette::ACCENT));
+                    ui.label(RichText::new("👁 Privacy-First Local OCR (WASM)").strong().color(palette::ACCENT));
                     ui.add_space(4.0);
-                    ui.label(RichText::new("Improves Search/RAG recall accuracy by cross-testing retrieved chunks against the query using a dedicated neural model.").small().color(palette::text_dim(self.state.night_mode)));
+                    ui.label(RichText::new("Extracts text from images locally using WASM-based Tesseract. Fallback to cloud only if disabled or model missing.").small().color(palette::text_dim(self.state.night_mode)));
                     ui.add_space(12.0);
                     
                     ui.horizontal(|ui| {
-                        let mut use_reranker = self.state.use_local_reranker.unwrap_or(false);
-                        if ui.checkbox(&mut use_reranker, "Enable Local BGE-M3 Reranker").changed() {
-                            self.state.use_local_reranker = Some(use_reranker);
+                        let mut use_ocr = self.state.use_local_ocr.unwrap_or(false);
+                        if ui.checkbox(&mut use_ocr, "Enable Local WASM OCR").changed() {
+                            self.state.use_local_ocr = Some(use_ocr);
                             crate::app_state::save_config(&self.state);
-                        }
-                        
-                        if use_reranker {
-                            let status = self.state.bge_model_status.as_deref().unwrap_or("Not Installed");
-                            
-                            let color = match status {
-                                "Ready" | "loaded" => palette::SUCCESS,
-                                "downloading" => palette::WARNING,
-                                _ => palette::text_dim(self.state.night_mode),
-                            };
-                            
-                            ui.label(RichText::new(format!("Status: {}", status)).color(color));
-                            
-                            if status != "Ready" && status != "loaded" && status != "downloading" {
-                                if ui.button("⬇ Download Model (BGE-M3)").clicked() {
-                                    self.state.bge_model_status = Some("downloading".to_string());
-                                    self.do_download_model(ctx, "bge-reranker-v2-minica");
-                                }
-                            }
                         }
                     });
                 });

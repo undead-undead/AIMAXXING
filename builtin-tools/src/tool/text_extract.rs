@@ -18,18 +18,23 @@ use std::sync::Arc;
 use brain::agent::provider::{Provider, ChatRequest};
 use brain::agent::message::{Message, Role, Content, ContentPart, ImageSource};
 
-use brain::error::Error;
-use brain::skills::tool::{Tool, ToolDefinition};
+use runtimes::WasmRuntime;
+use engram::ensure_ocr_assets;
 
 pub struct TextExtractTool {
     provider: Option<Arc<dyn Provider>>,
     model: Option<String>,
+    wasm_runtime: Arc<WasmRuntime>,
 }
 
 impl TextExtractTool {
     /// Create a new TextExtractTool with optional provider and model for vision fallback
     pub fn new(provider: Option<Arc<dyn Provider>>, model: Option<String>) -> Self {
-        Self { provider, model }
+        Self { 
+            provider, 
+            model,
+            wasm_runtime: Arc::new(WasmRuntime::new()),
+        }
     }
 }
 
@@ -114,6 +119,17 @@ impl TextExtractTool {
         }
     }
 
+    // Strategy 1.5: WASM Tesseract (New Phase 3)
+    if backend == "auto" || backend == "wasm" {
+        if let Ok(text) = self.ocr_wasm(&args.path, lang).await {
+             return Ok(json!( {
+                "text": text,
+                "backend": "tesseract_wasm",
+                "language": lang,
+            } ));
+        }
+    }
+
     // Strategy 2: LLM Vision API (via Provider)
     if backend == "auto" || backend == "api" {
         if let Some(p) = &self.provider {
@@ -145,6 +161,34 @@ impl TextExtractTool {
         "degraded": true,
         "install_hint": "Install pixi/tesseract for local OCR, or configure a Vision-enabled LLM Provider."
     }))
+    }
+
+    /// Run OCR via a WASM-compiled Tesseract component
+    async fn ocr_wasm(&self, path: &str, lang: &str) -> anyhow::Result<String> {
+        let wasm_path = engram::ensure_ocr_assets()?;
+        let models_dir = wasm_path.parent().ok_or_else(|| anyhow::anyhow!("Invalid WASM path"))?;
+
+        let args_json = json!({
+            "image_path": path,
+            "lang": lang
+        });
+
+        // We mount the models_dir as base_dir so the WASM can find .traineddata at ./eng.traineddata
+        let output = self.wasm_runtime.call(
+            &wasm_path, 
+            &args_json.to_string(), 
+            &models_dir.to_path_buf()
+        ).await?;
+
+        if !output.status.success() {
+            anyhow::bail!("WASM OCR failed: {}", String::from_utf8_lossy(&output.stderr));
+        }
+
+        let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if result.is_empty() {
+            anyhow::bail!("WASM OCR returned empty text");
+        }
+        Ok(result)
     }
 }
 

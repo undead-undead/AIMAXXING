@@ -10,7 +10,6 @@
 // Core modules
 pub mod content_hash;
 pub mod error;
-pub mod kv;
 pub mod storage;
 pub mod store;
 
@@ -42,13 +41,14 @@ pub mod indexer;
 pub mod intent;
 pub mod retriever;
 pub mod virtual_path;
+pub mod wasm_ocr;
 pub mod watcher;
 
 // Re-exports
 pub use error::{EngramError, Result};
-pub use kv::EngramKV;
+pub use storage::redb_impl::EngramKV;
 pub use storage::Storage;
-pub use store::{Collection, Document, EngramStore, StoreStats}; // Removed SearchResult
+pub use store::{Collection, Document, EngramStore, StoreStats};
 
 pub use hybrid_search::{
     HybridSearchConfig, HybridSearchEngine, HybridSearchResult, HybridSearchStats,
@@ -69,9 +69,10 @@ pub use local_reranker::LocalCandleReranker;
 #[cfg(feature = "vector")]
 pub use quant::{QuantLevel, Quantizer, ScalarQuantizer};
 #[cfg(feature = "vector")]
-pub use simd_kernels::dot_product_q4_f32;
+pub use simd_kernels::dot_product_int4_f32;
 #[cfg(feature = "vector")]
-pub use vector_store::{VectorEntry, VectorStore}; // Removed VectorSearchResult
+pub use vector_store::{VectorEntry, VectorStore};
 
 pub use chunker::{Chunk, ChunkStats, Chunker, ChunkerConfig};
 pub use retriever::HierarchicalRetriever;
+pub use wasm_ocr::ensure_ocr_assets;

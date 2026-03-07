@@ -12,6 +12,8 @@ pub enum NotifyChannel {
     Telegram,
     /// Send via Discord
     Discord,
+    /// Send via Slack
+    Slack,
     /// Send to a generic Webhook
     Webhook { url: String },
     /// Log to console/file
@@ -38,6 +40,7 @@ impl Notifier for LogNotifier {
             NotifyChannel::Email => "Email",
             NotifyChannel::Telegram => "Telegram",
             NotifyChannel::Discord => "Discord",
+            NotifyChannel::Slack => "Slack",
             NotifyChannel::Webhook { .. } => "Webhook",
             NotifyChannel::Log => "Log",
         };

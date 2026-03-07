@@ -10,6 +10,7 @@ categories.workspace = true
 [dependencies]
 brain = { workspace = true }
 security = { workspace = true }
+engram = { workspace = true }
 runtimes = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

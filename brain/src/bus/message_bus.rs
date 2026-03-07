@@ -219,6 +219,14 @@ impl MessageBus {
     pub fn subscribe_webhook_event(&self) -> broadcast::Receiver<WebhookEvent> {
         self.webhook_tx.subscribe()
     }
+
+    /// Broadcast a notification to all active channels
+    pub async fn broadcast_notification(&self, content: String) -> crate::error::Result<()> {
+        // We use OutboundMessage with a special "broadcast" channel identifier
+        // Each connector should listen and send if it supports notifications
+        let message = OutboundMessage::new("broadcast", "all", content);
+        self.publish_outbound(message).await
+    }
 }
 
 impl Clone for MessageBus {

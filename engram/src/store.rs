@@ -6,7 +6,7 @@
 use crate::content_hash::{get_docid, hash_content};
 use crate::error::{EngramError, Result};
 use crate::fts::FtsEngine;
-use crate::kv::EngramKV;
+use crate::storage::redb_impl::EngramKV;
 use crate::storage::Storage;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

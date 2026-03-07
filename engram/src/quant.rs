@@ -302,3 +302,58 @@ pub(crate) fn f16_to_f32(bits: u16) -> f32 {
         * ((1 << 10 | mant) as f32)
         * f32::powi(2.0, exp as i32 - 15 - 10)
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+        let mut dot = 0.0;
+        let mut norm_a = 0.0;
+        let mut norm_b = 0.0;
+        for (va, vb) in a.iter().zip(b.iter()) {
+            dot += va * vb;
+            norm_a += va * va;
+            norm_b += vb * vb;
+        }
+        dot / (norm_a.sqrt() * norm_b.sqrt())
+    }
+
+    #[test]
+    fn test_scalar_quantization_warm() {
+        let v1 = vec![0.1, 0.5, -0.3, 0.8];
+        let v2 = vec![0.2, 0.4, -0.2, 0.7];
+        let quant = ScalarQuantizer::train(&[&v1, &v2], QuantLevel::Warm);
+
+        let encoded = quant.encode(&v1);
+        let decoded = quant.decode(&encoded);
+
+        let sim = cosine_similarity(&v1, &decoded);
+        assert!(sim > 0.999); // U8 Should be extremely accurate
+    }
+
+    #[test]
+    fn test_scalar_quantization_cold() {
+        let v1 = vec![0.1, 0.5, -0.3, 0.8];
+        let v2 = vec![0.2, 0.4, -0.2, 0.7];
+        let quant = ScalarQuantizer::train(&[&v1, &v2], QuantLevel::Cold);
+
+        let encoded = quant.encode(&v1);
+        let decoded = quant.decode(&encoded);
+
+        let sim = cosine_similarity(&v1, &decoded);
+        assert!(sim > 0.95); // INT4 Should be decent
+    }
+
+    #[test]
+    fn test_ternary_quantization() {
+        let v = vec![0.1, 0.5, -0.3, 0.8, -0.1, 0.0, 0.4, -0.9];
+        let quant = TernaryQuantizer::new(8);
+
+        let encoded = quant.encode(&v);
+        let decoded = quant.decode(&encoded);
+
+        let sim = cosine_similarity(&v, &decoded);
+        // Ternary is rough, but should maintain general direction
+        assert!(sim > 0.7);
+    }
+}

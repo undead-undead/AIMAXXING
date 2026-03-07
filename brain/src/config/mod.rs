@@ -65,7 +65,21 @@ pub struct ConnectorsConfig {
     pub feishu: Option<FeishuConfig>,
     pub dingtalk: Option<DingTalkConfig>,
     pub slack: Option<SlackConfig>,
+    pub email: Option<EmailConfig>,
     pub im: Option<BarkConfig>, // iMessage support via Bark (iOS)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EmailConfig {
+    pub smtp_server: String,
+    pub smtp_port: u16,
+    pub smtp_user: String,
+    pub smtp_pass: String,
+    pub imap_server: String,
+    pub imap_port: u16,
+    pub imap_user: String,
+    pub imap_pass: String,
+    pub from_address: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -102,6 +116,7 @@ pub struct DingTalkConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SlackConfig {
     pub bot_token: String,
+    pub app_token: Option<String>, // For Socket Mode
     pub verification_token: String,
 }
 
@@ -197,6 +212,11 @@ impl AppConfig {
         }
         if let Some(sl) = &mut self.connectors.slack {
             sl.bot_token = resolve_one(Some(sl.bot_token.clone()), vault)?.unwrap_or_default();
+            sl.app_token = resolve_one(sl.app_token.take(), vault)?;
+        }
+        if let Some(em) = &mut self.connectors.email {
+            em.smtp_pass = resolve_one(Some(em.smtp_pass.clone()), vault)?.unwrap_or_default();
+            em.imap_pass = resolve_one(Some(em.imap_pass.clone()), vault)?.unwrap_or_default();
         }
 
         Ok(())

@@ -3,11 +3,14 @@
 //! Integrates keyword-based (BM25) and semantic (vector) search using RRF fusion.
 
 #[cfg(feature = "vector")]
-use crate::embedder::Embedder;
+use crate::embedder::{Embedder, EmbedderConfig};
 use crate::error::{EngramError, Result};
+#[cfg(feature = "vector")]
+use crate::local_reranker::LocalCandleReranker;
 #[cfg(feature = "vector")]
 use crate::quant::QuantLevel;
 use crate::reranker::{NoOpReranker, Reranker};
+use crate::rrf::{RrfConfig, RrfFusion};
 use crate::store::{Collection, Document, EngramStore};
 #[cfg(feature = "vector")]
 use crate::vector_store::VectorStore;
@@ -83,20 +86,46 @@ impl HybridSearchEngine {
         #[cfg(feature = "vector")]
         let (vector_store, embedder) = {
             let vs_path = config.db_path.with_extension("vectors.bin");
+            let kv = store.kv_arc();
             let vs = if vs_path.exists() {
-                VectorStore::load(&vs_path).ok()
+                VectorStore::load(kv.clone(), &vs_path).ok()
             } else {
                 Some(VectorStore::new(
+                    kv.clone(),
                     config.vector_dimension,
                     config.max_vectors,
-                    config.vector_metric.into(), // Conversion if needed
+                    config.vector_metric.into(),
                 ))
             };
 
             // Note: This might be heavy, so we might want to make it optional or lazy
-            let emb = Embedder::new().ok();
+            let emb = Embedder::with_config(EmbedderConfig::default(), Some(kv)).ok();
             (vs.map(Arc::new), emb.map(Arc::new))
         };
+
+        #[cfg(feature = "vector")]
+        let reranker: Arc<dyn Reranker> = {
+            let model_dir = config
+                .db_path
+                .parent()
+                .unwrap_or(&config.db_path)
+                .join("models")
+                .join("bge-reranker-v2-minica");
+            if model_dir.exists() && model_dir.join("model.safetensors").exists() {
+                match LocalCandleReranker::load_local(&model_dir) {
+                    Ok(r) => Arc::new(r),
+                    Err(e) => {
+                        tracing::warn!("Failed to load local reranker from {:?}: {}", model_dir, e);
+                        Arc::new(NoOpReranker)
+                    }
+                }
+            } else {
+                Arc::new(NoOpReranker)
+            }
+        };
+
+        #[cfg(not(feature = "vector"))]
+        let reranker: Arc<dyn Reranker> = Arc::new(NoOpReranker);
 
         Ok(Self {
             store,
@@ -104,7 +133,7 @@ impl HybridSearchEngine {
             vector_store,
             #[cfg(feature = "vector")]
             embedder,
-            reranker: Arc::new(NoOpReranker),
+            reranker,
             config,
         })
     }
@@ -176,17 +205,43 @@ impl HybridSearchEngine {
         // For now, we simulate vector search or trigger it if query is already an embedding.
         // In a real flow, a separate `search_vector` would be called with embedding.
 
-        let mut results: Vec<HybridSearchResult> = bm25_results
+        // 2. Perform RRF fusion
+        let fusion = RrfFusion::with_config(RrfConfig {
+            k: self.config.rrf_k as usize,
+            bm25_weight: self.config.bm25_weight,
+            vector_weight: self.config.vector_weight,
+        });
+
+        let bm25_input: Vec<(String, f64)> = bm25_results
+            .iter()
+            .map(|r| {
+                (
+                    format!("{}:{}", r.document.collection, r.document.path),
+                    r.score,
+                )
+            })
+            .collect();
+
+        // No vector results in this simple search
+        let fused_results = fusion.fuse(&bm25_input, &[]);
+
+        let mut results: Vec<HybridSearchResult> = fused_results
             .into_iter()
-            .enumerate()
-            .map(|(i, r)| HybridSearchResult {
-                document: r.document,
-                rrf_score: self.config.bm25_weight / (self.config.rrf_k + i as f64 + 1.0),
-                bm25_score: Some(r.score),
-                vector_score: None,
-                causal_efficiency: 1.0,
-                latency_ms: 0.0,
-                rank: i + 1,
+            .map(|f| {
+                // Find matching BM25 result (inefficient but works for small limit)
+                let r = bm25_results
+                    .iter()
+                    .find(|r| format!("{}:{}", r.document.collection, r.document.path) == f.docid)
+                    .unwrap();
+                HybridSearchResult {
+                    document: r.document.clone(),
+                    rrf_score: f.rrf_score,
+                    bm25_score: f.bm25_score,
+                    vector_score: None,
+                    causal_efficiency: 1.0,
+                    latency_ms: 0.0,
+                    rank: 0,
+                }
             })
             .collect();
 
@@ -226,83 +281,62 @@ impl HybridSearchEngine {
         ))?;
         let vector_results = vs.search(embedding, limit * 2)?;
 
-        let mut fused: std::collections::HashMap<String, HybridSearchResult> =
-            std::collections::HashMap::new();
+        let fusion = RrfFusion::with_config(RrfConfig {
+            k: self.config.rrf_k as usize,
+            bm25_weight: self.config.bm25_weight,
+            vector_weight: self.config.vector_weight,
+        });
 
-        // Score BM25
-        for (i, r) in bm25_results.into_iter().enumerate() {
-            let docid = format!("{}:{}", r.document.collection, r.document.path);
-            let rrf = self.config.bm25_weight / (self.config.rrf_k + i as f64 + 1.0);
+        let bm25_input: Vec<(String, f64)> = bm25_results
+            .iter()
+            .map(|r| {
+                (
+                    format!("{}:{}", r.document.collection, r.document.path),
+                    r.score,
+                )
+            })
+            .collect();
 
-            // Map utility_score to causal_efficiency (normalized to 0.0-1.0 range roughly, or just raw)
-            // For now we use the raw score as beta is 0.5
-            let causal_efficiency = r.document.utility_score;
+        let vector_input: Vec<(String, f64)> = vector_results
+            .iter()
+            .map(|r| (format!("{}:{}", r.collection, r.path), r.score as f64))
+            .collect();
 
-            fused.insert(
-                docid,
-                HybridSearchResult {
-                    document: r.document,
-                    rrf_score: rrf,
-                    bm25_score: Some(r.score),
-                    vector_score: None,
-                    causal_efficiency,
+        let fused = fusion.fuse(&bm25_input, &vector_input);
+
+        let mut results = Vec::new();
+        for f in fused {
+            // Retrieve document (prefer BM25 cached list, then KV)
+            let doc = if let Some(r) = bm25_results
+                .iter()
+                .find(|r| format!("{}:{}", r.document.collection, r.document.path) == f.docid)
+            {
+                Some(r.document.clone())
+            } else {
+                let parts: Vec<&str> = f.docid.splitn(2, ':').collect();
+                if parts.len() == 2 {
+                    self.store.get_by_path(parts[0], parts[1])?
+                } else {
+                    None
+                }
+            };
+
+            if let Some(doc) = doc {
+                results.push(HybridSearchResult {
+                    document: doc,
+                    rrf_score: f.rrf_score,
+                    bm25_score: f.bm25_score,
+                    vector_score: f.vector_score.map(|s| s as f32),
+                    causal_efficiency: 1.0,
                     latency_ms: 0.0,
                     rank: 0,
-                },
-            );
-        }
-
-        // Score Vector with Advanced Formula: Score = α·Similarity + β·Causal_Efficiency - γ·Latency
-        // Alpha, Beta, Gamma are currently fixed weights for Phase 14
-        let alpha = 1.0;
-        let beta = 0.5;
-        let gamma = 0.001;
-
-        for (i, v) in vector_results.into_iter().enumerate() {
-            let docid = format!("{}:{}", v.collection, v.path);
-
-            // Fetch the document to get the utility_score
-            let utility_score =
-                if let Ok(Some(doc)) = self.store.get_by_path(&v.collection, &v.path) {
-                    doc.utility_score
-                } else {
-                    v.causal_efficiency // fallback to vector's default
-                };
-
-            // Dynamic Scoring
-            let adj_vector_score = alpha * (1.0 - v.score as f64) + beta * utility_score as f64
-                - gamma * v.latency_ms as f64;
-            let rrf = self.config.vector_weight / (self.config.rrf_k + i as f64 + 1.0);
-
-            if let Some(existing) = fused.get_mut(&docid) {
-                existing.rrf_score += rrf;
-                existing.vector_score = Some(adj_vector_score as f32);
-                existing.causal_efficiency = v.causal_efficiency;
-                existing.latency_ms = v.latency_ms;
-            } else {
-                // Fetch document metadata if not in BM25 results
-                if let Some(doc) = self.store.get_by_path(&v.collection, &v.path)? {
-                    fused.insert(
-                        docid,
-                        HybridSearchResult {
-                            document: doc,
-                            rrf_score: rrf,
-                            bm25_score: None,
-                            vector_score: Some(adj_vector_score as f32),
-                            causal_efficiency: v.causal_efficiency,
-                            latency_ms: v.latency_ms,
-                            rank: 0,
-                        },
-                    );
-                }
+                });
             }
         }
 
-        let mut results: Vec<HybridSearchResult> = fused.into_values().collect();
-        results.sort_by(|a, b| b.rrf_score.partial_cmp(&a.rrf_score).unwrap());
         results.truncate(limit);
 
-        // Reranking (Cross-Encoder / Late Interaction)
+        // 4. Reranking (Cross-Encoder / Late Interaction)
         let mut results = self.reranker.rerank(query, results)?;
 
         for (i, r) in results.iter_mut().enumerate() {

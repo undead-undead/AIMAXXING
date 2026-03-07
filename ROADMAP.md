@@ -31,36 +31,49 @@ This document outlines the planned future developments for the AIMAXXING project
 
 ### 2.1 Connector Ecosystem Expansion
 - [x] Implement **Feishu (ByteDance)** connector for enterprise workspace automation (Bi-directional via Webhook Bridge).
-- [ ] Implement **Slack** Webhook & Real-time Messaging (RTM) support.
-- [ ] Add support for **E-mail (SMTP/IMAP)** as a persistent communication channel.
+- [x] Implement **Slack** Webhook & **Socket Mode** support.
+- [x] Add support for **E-mail (SMTP/IMAP)** as a persistent communication channel.
 
 ### 2.2 Unified Notification Center
-- [ ] Create a cross-connector notification abstraction to allow agents to "broadcast" important alerts to all active channels.
+- [x] Create a cross-connector notification abstraction to allow agents to "broadcast" important alerts to all active channels.
 
 ---
 
-## Phase 3: Performance & RAG
+---
 
-### 3.1 Advanced Memory Compression
-- [ ] Implement dynamic quantization switching (moving memory from FP32/U8 to INT4/Ternary as it ages).
-- [ ] Optimize `redb` compacting logic for long-running deployments.
+## Phase 3: Unified Knowledge Engine & Performance (Engram V2)
+*Constraint*: Consolidate local RAG accuracy with extreme memory efficiency and hardware acceleration.
 
-### 3.2 Visual Knowledge Ingestion
-- [ ] Integrate local OCR (using Tesseract or similar WASM-based engines) for document parsing.
+### 3.1 Storage Abstraction (Memory Decoupling)
+- [x] Define generic `Storage` and `KVStore` traits.
+- [x] Implement `Bytes`-based zero-copy fetching.
+- [x] Decouple `Engram` from hardcoded `redb` bindings.
+
+### 3.2 Quantization Precision (Dynamic Memory Management)
+- [x] Implement INT4 and Q1.58 (Ternary) quantization.
+- [x] Add dynamic aging logic: FP32 (Soul) -> U8 (Warm) -> INT4 (Cold).
+
+### 3.3 RAG Pipeline Optimization
+- [x] Implement Hybrid Search (BM25 + Vector) with RRF fusion.
+- [x] Optimize CJK segmentation for memory-efficient BM25 indexing.
+
+### 3.4 Hardware Acceleration (Phase 3-D)
+- [x] Enable AVX-512/Neon SIMD via `simsimd`.
+- [x] (Optional) Integrate GPU acceleration for heavy RAG workloads.
+- **Tasks**:
+    - [x] **Local Reranker**: Integrate lightweight Cross-Encoder models via `candle` (e.g., BGE-Reranker-v2-Minica).
+    - [ ] **Model Pooling**: Allow dynamic local model selection to save compute and API costs.
+    - [x] **Pipeline Update**: Coarse Search (BM25+HNSW) -> Precision Rerank -> Top-K.
+
+- **Upcoming/Candidate Features**:
+    - [x] **Local OCR (WASM)**: Integrate WASM-based Tesseract (Statically embedded for zero-setup offline OCR).
+    - [x] **SIMD Optimization**: Implement AVX2/NEON accelerated distance metrics for vector search.
 
 ---
 
-## Phase 4: Developer Experience
+## Phase 4: Architectural Modularity & Decoupling
 
-### 4.1 Documentation Overhaul
-- [ ] Create a comprehensive "Developer's Guide" for writing new Skills/Tools.
-- [ ] Document the bit-level communication protocol between the `core` and the `panel` GUI.
-
----
-
-## Phase 5: Architectural Modularity & Decoupling
-
-### 5.1 "Fat Core" Slimming
+### 4.1 "Fat Core" Slimming
 - **Goal**: Transition `brain` crate from monolithic implementation to a pure abstraction layer while **preserving full-stack connectivity** (Bus/Traits).
 - **Tasks**:
     - [x] Extract `connectors/` into a standalone crate.
@@ -69,18 +82,18 @@ This document outlines the planned future developments for the AIMAXXING project
     - [x] Extract `skills/` (Engine + Built-in Tools) into a standalone crate.
     - [x] Extract `knowledge/`, `mcp/`, `auth/`, `infra/` into their respective crates.
 
-### 5.2 Filesystem Hygiene
+### 4.2 Filesystem Hygiene
 - [x] Direct all runtime artifacts (`.log`, `.pid`, `.json` tokens) to a unified `/data` or `/var` directory.
 - [x] Remove all persistent state files from the project root.
 We welcome contributions to any of these areas! Please open an issue or PR on the respective module.
 
 ---
 
-## Phase 6: Native Windows Experience (CRITICAL TRANSITION)
+## Phase 5: Native Windows Experience (CRITICAL TRANSITION)
 
 *Constraint*: The entire AIMAXXING engine, including gateways, panels, and all spawned agent sandboxes, **MUST execute in user-space without Windows Administrator (`UAC`) privileges**.
 
-### 6.1 Unified Zero-Admin Runtimes (QuickJS + Pixi `m2-bash`)
+### 5.1 Unified Zero-Admin Runtimes (QuickJS + Pixi `m2-bash`)
 - **Goal**: Sever reliance on Git Bash or WSL by promoting embedded QuickJS, and safely containerizing legacy bash via Pixi's MSYS2 environment.
 - **Tasks**:
     - [x] Prioritize embedded `QuickJS` for cross-platform hook scripts (`JsHook`) in `core/src/hooks/engine.rs` instead of relying on `ShellHook`.
@@ -88,7 +101,7 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
     - [x] Bypass system bash for Python-based skills on Windows: intercept executions and route them directly to the `uv` virtual environment managed by `Pixi` in `core/src/env/mod.rs`.
     - [x] Ensure Windows paths (`\\?\` or C:\`) are precisely handled during bash context and `uv` environment provisioning in `runtimes/src/python_utils.rs`.
 
-### 6.2 Cross-Platform Command Equivalents
+### 5.2 Cross-Platform Command Equivalents
 - **Goal**: Refactor hardcoded Linux commands in built-in tools to use cross-platform Rust equivalents or OS-aware branches.
 - **Tasks**:
     - [x] `core/src/env/mod.rs`: Replace `df -m` with pure-Rust `sysinfo` crate for disk space checking.
@@ -97,7 +110,7 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
     - [x] `core/src/hooks/engine.rs`: Refactor `ShellHook` which hardcodes `Command::new("sh").arg("-c")` to use PowerShell or `cmd.exe` on Windows.
     - [x] `gateway/src/api/server.rs`: Update `handle_terminal_socket` which currently hardcodes `/bin/bash` to launch `powershell.exe` on Windows.
 
-### 6.3 Developer Experience & Tooling
+### 5.3 Developer Experience & Tooling
 - **Goal**: Provide an accessible entry point for Windows developers.
 - **Tasks**:
     - [x] Create `install.ps1` for native Windows environment setup (matching `install.sh`).
@@ -107,40 +120,12 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 
 ---
 
-## Phase 7: Engram V2 (Knowledge Engine Evolution)
-
-*Constraint*: Evolve the `engram` crate from a local library to an enterprise-grade, high-performance RAG and KAG infrastructure.
-
-### 7.1 Storage Layer Abstraction (Pluggable Storage)
-- **Goal**: Decouple the hardcoded `redb` dependency and introduce a `Storage` trait for flexible backends.
-- **Tasks**:
-    - [x] Define the `Storage` trait in `engram/src/storage.rs`.
-    - [x] Implement `RedbStorage` as the default local backend.
-    - [ ] Design hot/cold data tiering abstraction for future-proofing (e.g., SQLite/Sled integration).
-
-### 7.2 Retrieval Evolution: Cross-Encoder Reranking
-- **Goal**: Integrate a local, lightweight Cross-Encoder model to achieve precision reranking of vector/BM25 results without relying on cloud APIs.
-- **Tasks**:
-    - [ ] Abstract a `Reranker` trait supporting multiple backends.
-    - [ ] Implement `LocalCandleReranker` using `candle-core` and a GGUF quantized model (e.g., BGE-Reranker-v2-Minica).
-    - [ ] Build a one-click "Download & Load" UI in the Panel so users don't need to manually hunt for model files (Embeddings & Rerankers).
-    - [ ] Update `hybrid_search.rs` to pipeline: Coarse Search (BM25+HNSW) -> Precision Rerank -> Top-K.
-
-### 7.3 Computation Evolution: Embedding Cache & Model Pooling
-- **Goal**: Prevent redundant embeddings and allow dynamic model selection to save compute and API costs.
-- **Tasks**:
-    - [ ] Implement an `EmbeddingCache` mapping SHA-256 content hashes to vector representations.
-    - [ ] Refactor embedding ingestion to skip API calls for previously hashed texts.
-
-### 7.4 System/Hardware Evolution: Zero-Copy and Advanced SIMD
-- **Goal**: Squeeze maximum performance out of native hardware for vector retrieval and memory mapping.
-- **Tasks**:
-    - [ ] Refactor internal KV fetching to use `Bytes` or `Arc<[u8]>` instead of `String` to eliminate unnecessary memory copies.
+---
 ---
 
-## Phase 8: Professional UI & Multimedia (Local Media)
+## Phase 6: Professional UI & Multimedia (Local Media)
 
-### 8.1 Local Media Runtime (Self-Hosted Voice)
+### 6.1 Local Media Runtime (Self-Hosted Voice)
 - **Goal**: Provide a completely offline, zero-cost voice system (STT/TTS) leveraging local hardware, independent of cloud API subscriptions.
 - **Tasks**:
     - [ ] **Optional Media Downloader**: Add "Download Media Components" buttons in the Model Management UI (sharing the same unified downloader logic as Llama models).
@@ -148,7 +133,7 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
     - [ ] **Local Piper (TTS)**: Implement a high-speed, local neural text-to-speech engine using `Piper` with curated voice models.
     - [ ] **Interactive "Light-Up" Logic**: Automatically detect downloaded media runtimes and dynamically inject the 🎙️ (Microphone) button into the Agent chat interface only when ready.
 
-### 8.2 Professional Navigation & Session Overhaul
+### 6.2 Professional Navigation & Session Overhaul
 - **Goal**: Elevate the existing top-tab architecture into a premium, high-performance navigation system for better task focus and multi-agent management.
 - **Tasks**:
     - [ ] **Tab Bar Modernization**: Refine the existing top-tab bar with "Glassmorphism" effects, smooth transitions, and better active-state visualization.
@@ -162,7 +147,7 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 
 ---
 
-## Phase 9: Granular Agent Governance & Capability Isolation
+## Phase 7: Granular Agent Governance & Capability Isolation
 
 - **Goal**: Implement "Least Privilege" security and reduce context clutter by allowing per-agent skill/tool configuration, moving away from the "global-by-default" skill model.
 - **Tasks**:
@@ -173,7 +158,7 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 
 ---
 
-## Phase 10: Autonomous Operations & Advanced Scheduling
+## Phase 8: Autonomous Operations & Advanced Scheduling
 
 - **Goal**: Elevate the existing simple cron functionality into a professional, multi-tab autonomous execution center.
 - **Tasks**:
@@ -187,7 +172,7 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 
 ---
 
-## Phase 11: Unified Persistence Engine (redb Transition)
+## Phase 9: Unified Persistence Engine (redb Transition)
 
 - **Goal**: Sever all remaining reliance on `serde_json` file-overwrites for runtime state and eliminate the performance bottlenecks of the current "fat-JSON" model.
 - **Tasks**:
@@ -197,7 +182,7 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
 
 ---
 
-## Phase 12: Advanced Memory Tiering & Consolidation
+## Phase 10: Advanced Memory Tiering & Consolidation
 
 - **Goal**: Mathematically separate "Conversation Logs" (Ephemeral) from "Agent Memory" (Persistent) to maximize token efficiency and prevent long-term context clutter.
 - **Tasks**:
@@ -208,4 +193,10 @@ We welcome contributions to any of these areas! Please open an issue or PR on th
         - **Create**: Add new facts or user preferences discovered during conversation.
         - **Read**: Explicitly list or query the current permanent memory.
         - **Update**: Correct or overwrite outdated/incorrect stored facts.
-        - **Delete**: Permanently remove sensitive or inaccurate data from the soul.
+---
+
+## Phase 11: Developer Experience
+
+### 12.1 Documentation Overhaul
+- [ ] Create a comprehensive "Developer's Guide" for writing new Skills/Tools.
+- [ ] Document the bit-level communication protocol between the `core` and the `panel` GUI.

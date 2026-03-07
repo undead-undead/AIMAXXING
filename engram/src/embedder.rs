@@ -4,10 +4,13 @@
 //! Supports both local ONNX models and provides mean pooling for sentence embeddings.
 
 use crate::error::{EngramError, Result};
+use crate::storage::Storage;
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config};
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokenizers::{PaddingParams, Tokenizer};
 
 /// Configuration for the embedder
@@ -39,6 +42,7 @@ pub struct Embedder {
     config: EmbedderConfig,
     device: Device,
     dimension: usize,
+    storage: Option<Arc<dyn Storage>>,
 }
 
 impl Embedder {
@@ -48,10 +52,10 @@ impl Embedder {
     }
 
     pub fn new() -> Result<Self> {
-        Self::with_config(EmbedderConfig::default())
+        Self::with_config(EmbedderConfig::default(), None)
     }
 
-    pub fn with_config(config: EmbedderConfig) -> Result<Self> {
+    pub fn with_config(config: EmbedderConfig, storage: Option<Arc<dyn Storage>>) -> Result<Self> {
         let device = match config.device.as_deref() {
             Some("cpu") => Device::Cpu,
             Some("cuda") => Device::new_cuda(0)
@@ -113,6 +117,7 @@ impl Embedder {
             config,
             device,
             dimension,
+            storage,
         })
     }
 
@@ -127,11 +132,36 @@ impl Embedder {
     }
 
     pub fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        let mut results = vec![vec![0.0; self.dimension]; texts.len()];
+        let mut to_embed = Vec::new();
+        let mut to_embed_indices = Vec::new();
+
+        for (i, &text) in texts.iter().enumerate() {
+            if let Some(storage) = &self.storage {
+                let hash = self.hash_text(text);
+                if let Ok(Some(cached)) = storage.get_embedding_cache(&hash) {
+                    if cached.len() == self.dimension {
+                        results[i] = cached;
+                        continue;
+                    }
+                }
+            }
+            to_embed.push(text);
+            to_embed_indices.push(i);
+        }
+
+        if to_embed.is_empty() {
+            return Ok(results);
+        }
+
+        // Tokenization for remaining
         let tokens = self
             .tokenizer
-            .encode_batch(texts.to_vec(), true)
+            .encode_batch(to_embed.clone(), true)
             .map_err(|e| EngramError::Custom(format!("Tokenization failed: {}", e)))?;
 
+        // ... truncated (replacing the actual inference logic block) ...
+        // Forward pass
         let token_ids = tokens
             .iter()
             .map(|t| {
@@ -148,31 +178,22 @@ impl Embedder {
             .zeros_like()
             .map_err(|e| EngramError::Custom(format!("Zeros like failed: {}", e)))?;
 
-        // Create attention mask (1.0 for token, 0.0 for padding)
         let attention_mask = token_ids
             .ne(0u32)
             .map_err(|e| EngramError::Custom(format!("Mask failed: {}", e)))?
             .to_dtype(candle_core::DType::U32)
             .map_err(|e| EngramError::Custom(format!("Mask cast failed: {}", e)))?;
 
-        // Forward pass
         let embeddings = self
             .model
             .forward(&token_ids, &token_type_ids, Some(&attention_mask))
             .map_err(|e| EngramError::Custom(format!("Model forward failed: {}", e)))?;
 
-        // Mean pooling
-        let (_batch_n, _seq_len, _hidden_size) = embeddings
-            .dims3()
-            .map_err(|e| EngramError::Custom(format!("Dims error: {}", e)))?;
-
-        // Use float mask for pooling
+        // Mean pooling logic (same as before but applied to 'embeddings')
         let mask_float = attention_mask
             .to_dtype(candle_core::DType::F32)
             .map_err(|e| EngramError::Custom(format!("Mask cast f32 failed: {}", e)))?;
 
-        // embeddings * mask.missing_dim?
-        // broadcasting mask: (batch, seq) -> (batch, seq, 1) -> (batch, seq, hidden)
         let mask_broadcast = mask_float
             .unsqueeze(2)
             .map_err(|e| EngramError::Custom(format!("Unsqueeze failed: {}", e)))?
@@ -190,7 +211,6 @@ impl Embedder {
             .sum(1)
             .map_err(|e| EngramError::Custom(format!("Mask sum failed: {}", e)))?;
 
-        // Avoid division by zero
         let sum_mask = sum_mask
             .clamp(1e-9, f32::MAX)
             .map_err(|e| EngramError::Custom(format!("Clamp failed: {}", e)))?;
@@ -204,7 +224,6 @@ impl Embedder {
             .div(&sum_mask)
             .map_err(|e| EngramError::Custom(format!("Div failed: {}", e)))?;
 
-        // Normalize
         let pooled = if self.config.normalize {
             let norm = pooled
                 .sqr()
@@ -225,9 +244,28 @@ impl Embedder {
             pooled
         };
 
-        pooled
+        let new_embeddings = pooled
             .to_vec2::<f32>()
-            .map_err(|e| EngramError::Custom(format!("To vec2 failed: {}", e)))
+            .map_err(|e| EngramError::Custom(format!("To vec2 failed: {}", e)))?;
+
+        // Cache and merge
+        for (i, emb) in new_embeddings.into_iter().enumerate() {
+            let idx = to_embed_indices[i];
+            let text = to_embed[i];
+            results[idx] = emb.clone();
+            if let Some(storage) = &self.storage {
+                let hash = self.hash_text(text);
+                let _ = storage.put_embedding_cache(&hash, &emb);
+            }
+        }
+
+        Ok(results)
+    }
+
+    fn hash_text(&self, text: &str) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(text);
+        format!("{:x}", hasher.finalize())
     }
 
     pub fn dimension(&self) -> usize {
@@ -257,7 +295,7 @@ mod tests {
     #[ignore] // Requires model file
     fn test_embed_single_text() {
         let config = EmbedderConfig::default();
-        let embedder = Embedder::with_config(config).unwrap();
+        let embedder = Embedder::with_config(config, None).unwrap();
 
         let text = "This is a test sentence for embedding.";
         let embedding = embedder.embed(text).unwrap();
@@ -339,5 +377,25 @@ mod tests {
             sim_1_2,
             sim_1_3
         );
+    }
+
+    #[test]
+    fn test_embedding_cache_storage() {
+        use crate::storage::redb_impl::EngramKV;
+        use tempfile::tempdir;
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test_cache.db");
+        let kv = EngramKV::open(db_path).unwrap();
+
+        let hash = "abc-123-hash";
+        let vector = vec![0.1, 0.2, 0.3, 0.4];
+
+        kv.put_embedding_cache(hash, &vector).unwrap();
+        let cached = kv.get_embedding_cache(hash).unwrap();
+        assert_eq!(cached.unwrap(), vector);
+
+        // Verify mismatch (different hash)
+        let none = kv.get_embedding_cache("other").unwrap();
+        assert!(none.is_none());
     }
 }

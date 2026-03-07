@@ -22,14 +22,14 @@ use builtin_tools::SkillLoader;
 // use brain::error::Error; // Removed unused import
 use brain::prelude::Tool;
 
-use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever};
+use engram::{HybridSearchEngine, HybridSearchConfig, HierarchicalRetriever, ensure_ocr_assets};
 use knowledge::IntentRouter;
 
 
 
 use crate::api::bridge::AgentBridge;
 use brain::bus::MessageBus;
-use connectors::{Connector, TelegramConnector, DiscordConnector, FeishuConnector, DingTalkConnector, SlackConnector, BarkConnector};
+use connectors::{Connector, TelegramConnector, DiscordConnector, FeishuConnector, DingTalkConnector, SlackConnector, EmailConnector, BarkConnector};
 use brain::agent::multi_agent::{Coordinator, AgentRole};
 
 /// App state shared across handlers
@@ -138,6 +138,13 @@ pub async fn start_server(
         persona_templates,
         bus: bus.clone(),
     };
+
+    // --- Phase 3: Automatic OCR Asset Extraction ---
+    tokio::spawn(async move {
+        if let Err(e) = engram::ensure_ocr_assets() {
+            tracing::error!("Failed to ensure OCR assets: {}", e);
+        }
+    });
 
 
     let app = Router::new()
@@ -344,24 +351,31 @@ pub async fn start_server(
 
             // --- Slack ---
             if let Some(sl_config) = connectors_config.slack {
+                let is_valid = !sl_config.bot_token.is_empty();
                 if let Ok(connector) = SlackConnector::try_new(sl_config) {
-                    state_for_reload.running_connectors.write().insert("slack".to_string());
+                    if is_valid {
+                        state_for_reload.running_connectors.write().insert("slack".to_string());
+                    }
                     let connector = Arc::new(connector);
                     let bus_clone = bus_for_reload.clone();
                     let c_clone = connector.clone();
                     let h1 = tokio::spawn(async move { let _ = c_clone.start(bus_clone).await; });
                     connector_handles.push(h1);
-                    
-                    let bus_sender = bus_for_reload.clone();
-                    let c_sender = connector.clone();
-                    let h2 = tokio::spawn(async move {
-                        let mut rx = bus_sender.subscribe_outbound();
-                        while let Ok(msg) = rx.recv().await {
-                            if msg.channel == "slack" { let _ = c_sender.send(msg).await; }
-                        }
-                    });
-                    connector_handles.push(h2);
                 }
+            }
+
+            // --- Email ---
+            if let Some(em_config) = connectors_config.email {
+                let is_valid = !em_config.smtp_server.is_empty() && !em_config.smtp_user.is_empty();
+                let connector = EmailConnector::new(em_config);
+                if is_valid {
+                    state_for_reload.running_connectors.write().insert("email".to_string());
+                }
+                let connector = Arc::new(connector);
+                let bus_clone = bus_for_reload.clone();
+                let c_clone = connector.clone();
+                let h1 = tokio::spawn(async move { let _ = c_clone.start(bus_clone).await; });
+                connector_handles.push(h1);
             }
 
             // --- Bark (im) ---
@@ -1144,6 +1158,8 @@ async fn get_channel_schema(
     let schemas = vec![
         TelegramConnector::metadata(),
         DiscordConnector::metadata(),
+        SlackConnector::metadata(),
+        EmailConnector::metadata(),
         FeishuConnector::metadata(),
         DingTalkConnector::metadata(),
         BarkConnector::metadata(),
@@ -2526,36 +2542,74 @@ async fn download_model(
     State(state): State<AppState>,
     Json(payload): Json<DownloadModelReq>,
 ) -> Result<Json<DownloadModelRes>, StatusCode> {
-    let model_dir = state.config_path.parent().unwrap().join("models").join(&payload.model_id);
+    let model_dir = state.config_path.parent().unwrap().join("models");
+    let target_dir = model_dir.join(&payload.model_id);
     
-    // In a real implementation, this would trigger an async background download 
-    // from ModelScope or HuggingFace. For now, we simulate success if the directory exists,
-    // or fail if it doesn't, to keep the MVP simple.
-    // 
-    // A robust version would use `reqwest` to fetch:
-    // 1. config.json
-    // 2. tokenizer.json
-    // 3. model.safetensors
+    let (base_url, files) = match payload.model_id.as_str() {
+        "all-minilm-l6-v2" => (
+            "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main",
+            vec!["config.json", "tokenizer.json", "model.safetensors"]
+        ),
+        "bge-reranker-v2-minica" => (
+            "https://huggingface.co/BAAI/bge-reranker-v2-minica/resolve/main",
+            vec!["config.json", "tokenizer.json", "model.safetensors"]
+        ),
+        _ => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    let target_dir_clone = target_dir.clone();
+    let mid = payload.model_id.clone();
     
-    if !model_dir.exists() {
-        std::fs::create_dir_all(&model_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        tracing::info!("Mock downloading model {} to {:?}", payload.model_id, model_dir);
-        
-        // Mock download logic: In reality we'd download the 50MB files here.
-        // For the sake of the structural plumbing, we assume the user placed them manually 
-        // if the download API isn't fully implemented yet, or we'd block here to download.
-        // We'll return an accepted status.
-        return Ok(Json(DownloadModelRes {
-            status: "downloading".into(),
-            message: format!("Started downloading {} background job.", payload.model_id),
-        }));
-    }
+    tokio::spawn(async move {
+        if let Err(e) = std::fs::create_dir_all(&target_dir_clone) {
+            tracing::error!("Failed to create model dir: {}", e);
+            return;
+        }
+
+        for file_name in files {
+            let file_url = format!("{}/{}", base_url, file_name);
+            let file_path = target_dir_clone.join(file_name);
+            
+            tracing::info!("Downloading {} to {:?}", file_url, file_path);
+            
+            match download_file_stream(&file_url, &file_path).await {
+                Ok(_) => tracing::info!("Successfully downloaded {}", file_name),
+                Err(e) => {
+                    tracing::error!("Failed to download {}: {}", file_name, e);
+                    return;
+                }
+            }
+        }
+        tracing::info!("Model {} download complete.", mid);
+    });
 
     Ok(Json(DownloadModelRes {
-        status: "ready".into(),
-        message: format!("Model {} is already downloaded.", payload.model_id),
+        status: "downloading".into(),
+        message: format!("Started downloading {} in the background.", payload.model_id),
     }))
 }
+
+async fn download_file_stream(url: &str, path: &std::path::Path) -> anyhow::Result<()> {
+    use tokio::io::AsyncWriteExt;
+    use futures::StreamExt;
+
+    let response = reqwest::get(url).await?;
+    if !response.status().is_success() {
+        anyhow::bail!("Failed to download file: HTTP {}", response.status());
+    }
+
+    let mut file = tokio::fs::File::create(path).await?;
+    let mut stream = response.bytes_stream();
+
+    while let Some(item) = stream.next().await {
+        let chunk = item?;
+        file.write_all(&chunk).await?;
+    }
+    
+    file.flush().await?;
+    Ok(())
+}
+
 
 #[derive(Deserialize)]
 struct LoadModelReq {

@@ -264,6 +264,7 @@ pub struct AppState {
     pub bge_model_status: Option<String>,
     pub use_local_embed: Option<bool>,
     pub bert_model_status: Option<String>,
+    pub use_local_ocr: Option<bool>,
 
     /// UI Language state
     pub language: Language,
@@ -485,6 +486,7 @@ impl AppState {
             bge_model_status: Some("Not Installed".to_string()),
             use_local_embed: Some(false),
             bert_model_status: Some("Not Installed".to_string()),
+            use_local_ocr: Some(false),
 
             night_mode,
             language,
