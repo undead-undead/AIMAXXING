@@ -105,7 +105,21 @@ impl TextExtractTool {
     let backend = args.backend.as_deref().unwrap_or("auto");
     let lang = args.language.as_deref().unwrap_or("eng");
 
-    // Strategy 1: Tesseract (Native or Pixi)
+    // Strategy 1: WASM Tesseract (New Phase 3 - Prioritize built-in)
+    if backend == "auto" || backend == "wasm" {
+        // WASM currently only supports eng and chi_sim
+        if lang == "eng" || lang == "chi_sim" || backend == "wasm" {
+            if let Ok(text) = self.ocr_wasm(&args.path, lang).await {
+                 return Ok(json!( {
+                    "text": text,
+                    "backend": "tesseract_wasm",
+                    "language": lang,
+                } ));
+            }
+        }
+    }
+
+    // Strategy 2: Tesseract (Native or Pixi)
     if backend == "auto" || backend == "tesseract" {
         match ocr_tesseract(&args.path, lang).await {
             Ok(text) => return Ok(json!( {
@@ -116,17 +130,6 @@ impl TextExtractTool {
             Err(e) => {
                 tracing::warn!("Tesseract (native/pixi) failed, trying fallback: {}", e);
             }
-        }
-    }
-
-    // Strategy 1.5: WASM Tesseract (New Phase 3)
-    if backend == "auto" || backend == "wasm" {
-        if let Ok(text) = self.ocr_wasm(&args.path, lang).await {
-             return Ok(json!( {
-                "text": text,
-                "backend": "tesseract_wasm",
-                "language": lang,
-            } ));
         }
     }
 
@@ -159,7 +162,7 @@ impl TextExtractTool {
         "base64_preview": preview,
         "base64_length": b64.len(),
         "degraded": true,
-        "install_hint": "Install pixi/tesseract for local OCR, or configure a Vision-enabled LLM Provider."
+        "install_hint": "Install pixi/tesseract for other languages, or configure a Vision-enabled LLM Provider."
     }))
     }
 
