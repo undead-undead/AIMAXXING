@@ -97,4 +97,6 @@ impl Default for SecurityManager {
 }
 
 #[cfg(test)]
+mod bypass_tests;
+#[cfg(test)]
 mod tests;

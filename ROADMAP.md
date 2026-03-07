@@ -27,7 +27,7 @@ This document outlines the strategic evolution of AIMAXXING, focusing on the **Z
 ### 1.2 Multi-Platform Security Firewall (Phase 1.1 Parity)
 - [x] **Windows Shell Firewall**: Comprehensive regex for `del`, `rd`, `runas`, `powershell -enc`, `certutil`.
 - [x] **Path Canonicalization**: Unified `\` to `/` normalization for firewall matching.
-- [ ] **Security Verification**: Perform aggressive coverage testing to ensure sandbox escape attempts are blocked.
+- [x] **Security Verification**: Perform aggressive coverage testing to ensure sandbox escape attempts are blocked.
 - [x] **macOS TCC Integration**: Pre-flight checks for Full Disk Access/Input Monitoring.
 - [x] **macOS Seatbelt**: Hardened profiles denying access to Keychains, Safari data, and private docs.
 

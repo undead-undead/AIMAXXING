@@ -133,8 +133,8 @@ pub static FIREWALL_RULES: &[FirewallRule] = &[
 /// The compiled regex set. Each pattern index corresponds to FIREWALL_RULES[i].
 static FIREWALL_SET: Lazy<RegexSet> = Lazy::new(|| {
     let patterns = [
-        // rm -rf (handles: rm -rf, rm -fr, rm --force --recursive, etc.)
-        r"(?i)\brm\s+(-[rRfF]{1,4}\s+|--force\s+|--recursive\s+){1,3}",
+        // rm -rf (handles: rm -rf, rm -fr, variables, and chaining)
+        r"(?i)\brm\b.*(-[rRfF]{1,4}\b|--force|--recursive)",
         // mkfs / fdisk / parted / wipefs
         r"(?i)\b(mkfs|fdisk|parted|wipefs|gdisk)\b",
         // dd if=... of=/dev/...
@@ -155,8 +155,8 @@ static FIREWALL_SET: Lazy<RegexSet> = Lazy::new(|| {
         r"(?i)(/dev/tcp/|bash\s+-[ic].*>&|>\s*/dev/(tcp|udp)/)",
         // Python/Perl socket reverse shells
         r#"(?i)(socket\.connect|os\.dup2|subprocess\.call|pty\.spawn)"#,
-        // eval | base64 -d | bash / sh  (obfuscation bypass)
-        r"(?i)(eval\s*\(|base64\s+-d.*\|\s*(bash|sh|python|perl)|echo.*\|.*base64.*\|.*bash)",
+        // Obfuscation bypass (eval, base64, xxd, printf/perl encoding)
+        r"(?i)(eval\s*\(|(base64|xxd|printf|perl)\b.*\|\s*(bash|sh|python|perl|ps1|pwsh|powershell)|echo.*\|.*base64.*\|.*bash)",
         // Sensitive paths (Cross-platform: /etc/shadow, ~/.ssh, SAM, macOS Keychains)
         r"(?i)(/etc/(shadow|passwd|sudoers|crontab|ssh/)|~?/\.ssh/(id_rsa|id_ed25519|authorized_keys)|/proc/(self|[0-9]+)/(mem|maps)|Windows/System32/config/SAM|/Library/Keychains/|/Users/.*/Library/Keychains/)",
         // PATH or LD_PRELOAD override
