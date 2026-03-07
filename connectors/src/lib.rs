@@ -50,9 +50,11 @@ pub mod im;
 pub mod telegram;
 pub mod feishu;
 pub mod dingtalk;
+pub mod slack;
 
 pub use telegram::TelegramConnector;
 pub use discord::DiscordConnector;
 pub use feishu::FeishuConnector;
 pub use dingtalk::DingTalkConnector;
+pub use slack::SlackConnector;
 pub use im::BarkConnector;

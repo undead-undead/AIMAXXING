@@ -57,14 +57,60 @@ impl super::Connector for DiscordConnector {
         }
     }
 
-    async fn start(&self, _bus: Arc<MessageBus>) -> Result<()> {
-        info!("Discord Connector (Webhook mode) started.");
-        info!("Note: Discord currently only supports outbound notifications via webhooks in this version.");
-        // Discord bidirectional requires Bot User + Gateway (Websocket).
-        // For now, we just stay alive to satisfy the interface.
-        loop {
-            sleep(Duration::from_secs(3600)).await;
+    async fn start(&self, bus: Arc<MessageBus>) -> Result<()> {
+        info!("Discord Connector started. Listening for webhook interactions...");
+        
+        let mut rx = bus.subscribe_webhook_event();
+        let bus = bus.clone();
+
+        while let Ok(event) = rx.recv().await {
+            if event.connector_id != "discord" {
+                continue;
+            }
+
+            let payload = event.payload;
+
+            // Discord Interactions (Webhook mode)
+            // https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-object
+            let interaction_type = payload["type"].as_u64().unwrap_or(0);
+            
+            if interaction_type == 2 { // APPLICATION_COMMAND
+                let data = &payload["data"];
+                let command_name = data["name"].as_str().unwrap_or("unknown");
+                let chat_id = payload["channel_id"].as_str().unwrap_or_default();
+                let sender_id = payload["member"]["user"]["id"].as_str()
+                    .or(payload["user"]["id"].as_str())
+                    .unwrap_or("unknown");
+
+                // Get command content (options)
+                let options = data["options"].as_array();
+                let text = if let Some(opts) = options {
+                    opts.iter()
+                        .filter_map(|o| o["value"].as_str())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                } else {
+                    command_name.to_string()
+                };
+
+                if !chat_id.is_empty() {
+                    info!("Discord connector received interaction /{} from {}", command_name, sender_id);
+                    
+                    let inbound = brain::bus::InboundMessage::new(
+                        "discord",
+                        sender_id,
+                        chat_id,
+                        format!("/{} {}", command_name, text).trim().to_string()
+                    );
+                    
+                    if let Err(e) = bus.publish_inbound(inbound).await {
+                        error!("Failed to publish inbound Discord interaction: {}", e);
+                    }
+                }
+            }
         }
+        
+        Ok(())
     }
 
     async fn send(&self, message: OutboundMessage) -> Result<()> {

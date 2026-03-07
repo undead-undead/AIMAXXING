@@ -5,8 +5,9 @@ use axum::{
     Json,
     extract::{State, Path, Query, ws::{WebSocketUpgrade, WebSocket, Message}},
     response::{Response, IntoResponse, sse::{Event, Sse}},
-    http::{StatusCode, Method},
+    http::{StatusCode, Method, HeaderMap},
 };
+use serde_json::json;
 use tower_http::cors::{CorsLayer, Any};
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
@@ -28,7 +29,7 @@ use knowledge::IntentRouter;
 
 use crate::api::bridge::AgentBridge;
 use brain::bus::MessageBus;
-use connectors::{Connector, TelegramConnector, DiscordConnector, FeishuConnector, DingTalkConnector, BarkConnector};
+use connectors::{Connector, TelegramConnector, DiscordConnector, FeishuConnector, DingTalkConnector, SlackConnector, BarkConnector};
 use brain::agent::multi_agent::{Coordinator, AgentRole};
 
 /// App state shared across handlers
@@ -54,6 +55,7 @@ pub struct AppState {
     /// Phase 11-B: Active cancellation tokens for triple-cut abort
     pub cancel_tokens: Arc<dashmap::DashMap<String, tokio_util::sync::CancellationToken>>,
     pub persona_templates: Vec<crate::PersonaTemplate>,
+    pub bus: Arc<MessageBus>,
 }
 
 use std::path::PathBuf;
@@ -111,6 +113,10 @@ pub async fn start_server(
 
     let running_connectors = Arc::new(parking_lot::RwLock::new(std::collections::HashSet::new()));
     
+    // --- Message Bus & Connectors Initialization ---
+    // Moved up to be available in AppState for webhooks
+    let bus = Arc::new(MessageBus::new(100));
+
     let state = AppState { 
         skills: loader,
         coordinator: coordinator.clone(),
@@ -130,6 +136,7 @@ pub async fn start_server(
         running_connectors,
         cancel_tokens: Arc::new(dashmap::DashMap::new()),
         persona_templates,
+        bus: bus.clone(),
     };
 
 
@@ -186,6 +193,8 @@ pub async fn start_server(
         .route("/api/cancel", post(cancel_handler))
         // OpenViking RAG API (Parallel Fast Track)
         .route("/api/knowledge/search", post(crate::api::knowledge::search_handler))
+        // ── Webhook Bridge (Phase 2.1) ─────────────────────────────────
+        .route("/api/v1/webhook/{connector_id}", post(webhook_handler))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
@@ -197,7 +206,7 @@ pub async fn start_server(
         .with_state(state.clone());
 
     // --- Message Bus & Connectors Initialization with Hot-Reload ---
-    let bus = Arc::new(MessageBus::new(100));
+    // (bus already created above)
     
     // Start Agent Bridge (Agent <-> Bus)
     if coordinator.get(&AgentRole::Assistant).is_some() {
@@ -327,6 +336,28 @@ pub async fn start_server(
                         let mut rx = bus_sender.subscribe_outbound();
                         while let Ok(msg) = rx.recv().await {
                             if msg.channel == "dingtalk" { let _ = c_sender.send(msg).await; }
+                        }
+                    });
+                    connector_handles.push(h2);
+                }
+            }
+
+            // --- Slack ---
+            if let Some(sl_config) = connectors_config.slack {
+                if let Ok(connector) = SlackConnector::try_new(sl_config) {
+                    state_for_reload.running_connectors.write().insert("slack".to_string());
+                    let connector = Arc::new(connector);
+                    let bus_clone = bus_for_reload.clone();
+                    let c_clone = connector.clone();
+                    let h1 = tokio::spawn(async move { let _ = c_clone.start(bus_clone).await; });
+                    connector_handles.push(h1);
+                    
+                    let bus_sender = bus_for_reload.clone();
+                    let c_sender = connector.clone();
+                    let h2 = tokio::spawn(async move {
+                        let mut rx = bus_sender.subscribe_outbound();
+                        while let Ok(msg) = rx.recv().await {
+                            if msg.channel == "slack" { let _ = c_sender.send(msg).await; }
                         }
                     });
                     connector_handles.push(h2);
@@ -592,6 +623,52 @@ struct SaveVaultRequest {
     value: String,
 }
 
+async fn webhook_handler(
+    State(state): State<AppState>,
+    Path(connector_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    // 1. Unified URL Verification (Synchronous Challenges)
+    // Feishu/Slack use "url_verification" with a "challenge" field.
+    if payload["type"] == "url_verification" {
+        if let Some(challenge) = payload["challenge"].as_str() {
+            tracing::info!(connector_id = %connector_id, "Received URL verification challenge");
+            return (
+                StatusCode::OK,
+                Json(json!({ "challenge": challenge })),
+            ).into_response();
+        }
+    }
+
+    // DingTalk can have specific verification logic if using Outgoing Webhooks
+    // (though usually, it's just a POST). Slack might also use event_callback.
+    if connector_id == "dingtalk" && payload["type"] == "sync_http_push" {
+         // Placeholder for DingTalk specific sync response if needed
+    }
+
+    // 2. Publish to MessageBus for asynchronous handling by connectors
+    let mut header_map = std::collections::HashMap::new();
+    for (name, value) in headers.iter() {
+        if let Ok(val) = value.to_str() {
+            header_map.insert(name.to_string(), val.to_string());
+        }
+    }
+
+    let event = brain::bus::WebhookEvent::new(connector_id, payload)
+        .with_headers(header_map);
+
+    if let Err(e) = state.bus.publish_webhook_event(event).await {
+        tracing::error!("Failed to publish webhook event to bus: {}", e);
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error: {}", e),
+        ).into_response();
+    }
+
+    StatusCode::OK.into_response()
+}
+
 async fn save_vault_secret(
     State(state): State<AppState>,
     Json(payload): Json<SaveVaultRequest>,
@@ -853,6 +930,7 @@ async fn get_soul(
     let content = tokio::fs::read_to_string(&soul_path).await.ok();
     let content = match content {
         Some(c) => c,
+        None => {
             // Try to find a template in state.persona_templates (case-insensitive)
             let role_lower = role.to_lowercase();
             if let Some(t) = state.persona_templates.iter().find(|t| t.name.to_lowercase() == role_lower) {

@@ -23,7 +23,7 @@ minimax = ["openai"]
 
 
 [dependencies]
-brain = { path = "../core" }
+brain = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }

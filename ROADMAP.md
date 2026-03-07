@@ -7,22 +7,22 @@ This document outlines the planned future developments for the AIMAXXING project
 ### 1.1 Windows Shell Firewall Parity
 - **Goal**: Bring the `ShellFirewall` rules in `core/src/security/shell_firewall.rs` to parity with Linux by adding Windows-specific command patterns.
 - **Tasks**:
-    - [ ] Add regex for Windows file deletion: `del`, `rd /s`, `erase`.
-    - [ ] Add regex for Windows privilege escalation: `runas`.
-    - [ ] Add regex for system disruption commands: `format`, `vssadmin delete shadows`.
-    - [ ] Add regex for obfuscated Windows execution: `powershell -enc`, `powershell -EncodedCommand`, `certutil -urlcache`.
-    - [ ] Implement path canonicalization for Windows (`\` vs `/`).
+    - [x] Add regex for Windows file deletion: `del`, `rd /s`, `erase`.
+    - [x] Add regex for Windows privilege escalation: `runas`.
+    - [x] Add regex for system disruption commands: `format`, `vssadmin delete shadows`.
+    - [x] Add regex for obfuscated Windows execution: `powershell -enc`, `powershell -EncodedCommand`, `certutil -urlcache`.
+    - [x] Implement path canonicalization for Windows (`\` vs `/`).
 
 ### 1.2 Resource Quota Hardening
-- [ ] Expand Windows Job Object limits to include network I/O throttling per process.
-- [ ] Implement disk I/O limits in Linux `bwrap` using `cgroups v2`.
+- [x] Expand Windows Job Object limits to include network I/O throttling per process.
+- [x] Implement disk I/O limits in Linux `bwrap` using `cgroups v2`.
 
 ### 1.3 macOS Security Strategy
 - **Goal**: Harden the macOS execution environment beyond basic `Seatbelt` profiles.
 - **Tasks**:
-    - [ ] **TCC Integration**: Implement pre-flight checks for macOS "Full Disk Access" and "Input Monitoring" permissions to avoid silent failures.
-    - [ ] **Seatbelt (sandbox-exec) Hardening**: Refine the Scheme profile to explicitly deny access to `~/Library/Keychains`, `~/Library/Safari`, and `~/Documents` unless explicitly whitelisted.
-    - [ ] **Firewall Expansion**: Add regex for macOS-specific data exfiltration tools: `pbpaste`, `screencapture`, `mdfind` (potential sensitive file searching).
+    - [x] **TCC Integration**: Implement pre-flight checks for macOS "Full Disk Access" and "Input Monitoring" permissions to avoid silent failures.
+    - [x] **Seatbelt (sandbox-exec) Hardening**: Refine the Scheme profile to explicitly deny access to `~/Library/Keychains`, `~/Library/Safari`, and `~/Documents` unless explicitly whitelisted.
+    - [x] **Firewall Expansion**: Add regex for macOS-specific data exfiltration tools: `pbpaste`, `screencapture`, `mdfind` (potential sensitive file searching).
     - [ ] **Code Signing**: Integrate automatic self-signing for generated WASM/Native tools to satisfy macOS Gatekeeper requirements in local environments.
 
 ---
@@ -30,7 +30,7 @@ This document outlines the planned future developments for the AIMAXXING project
 ## Phase 2: Communication & Connectivity
 
 ### 2.1 Connector Ecosystem Expansion
-- [ ] Implement **Feishu (ByteDance)** connector for enterprise workspace automation.
+- [x] Implement **Feishu (ByteDance)** connector for enterprise workspace automation (Bi-directional via Webhook Bridge).
 - [ ] Implement **Slack** Webhook & Real-time Messaging (RTM) support.
 - [ ] Add support for **E-mail (SMTP/IMAP)** as a persistent communication channel.
 

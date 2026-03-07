@@ -64,6 +64,7 @@ pub struct ConnectorsConfig {
     pub discord: Option<DiscordConfig>,
     pub feishu: Option<FeishuConfig>,
     pub dingtalk: Option<DingTalkConfig>,
+    pub slack: Option<SlackConfig>,
     pub im: Option<BarkConfig>, // iMessage support via Bark (iOS)
 }
 
@@ -96,6 +97,12 @@ pub struct FeishuConfig {
 pub struct DingTalkConfig {
     pub app_key: String,
     pub app_secret: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SlackConfig {
+    pub bot_token: String,
+    pub verification_token: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -187,6 +194,9 @@ impl AppConfig {
         }
         if let Some(ds) = &mut self.connectors.discord {
             ds.bot_token = resolve_one(Some(ds.bot_token.clone()), vault)?.unwrap_or_default();
+        }
+        if let Some(sl) = &mut self.connectors.slack {
+            sl.bot_token = resolve_one(Some(sl.bot_token.clone()), vault)?.unwrap_or_default();
         }
 
         Ok(())

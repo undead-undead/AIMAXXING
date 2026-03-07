@@ -57,13 +57,46 @@ impl super::Connector for DingTalkConnector {
         }
     }
 
-    async fn start(&self, _bus: Arc<MessageBus>) -> Result<()> {
-        info!("DingTalk Connector started.");
-        info!("Note: DingTalk bi-directional stream mode requires WebSocket integration.");
-        // We stay alive to satisfy the interface.
-        loop {
-            sleep(Duration::from_secs(3600)).await;
+    async fn start(&self, bus: Arc<MessageBus>) -> Result<()> {
+        info!("DingTalk Connector started. Listening for webhook events...");
+        
+        let mut rx = bus.subscribe_webhook_event();
+        let bus = bus.clone();
+
+        while let Ok(event) = rx.recv().await {
+            if event.connector_id != "dingtalk" {
+                continue;
+            }
+
+            let payload = event.payload;
+
+            // DingTalk Outgoing Webhook format:
+            // { "text": { "content": "hello" }, "senderId": "123", "conversationId": "456", "msgtype": "text" }
+            let msg_type = payload["msgtype"].as_str().unwrap_or_default();
+            
+            if msg_type == "text" {
+                let text = payload["text"]["content"].as_str().unwrap_or("");
+                let sender_id = payload["senderId"].as_str().unwrap_or("unknown");
+                let chat_id = payload["conversationId"].as_str().unwrap_or_default();
+
+                if !text.is_empty() && !chat_id.is_empty() {
+                    info!("DingTalk connector received message from {}: {}", sender_id, text);
+                    
+                    let inbound = brain::bus::InboundMessage::new(
+                        "dingtalk",
+                        sender_id,
+                        chat_id,
+                        text
+                    );
+                    
+                    if let Err(e) = bus.publish_inbound(inbound).await {
+                        error!("Failed to publish inbound DingTalk message: {}", e);
+                    }
+                }
+            }
         }
+        
+        Ok(())
     }
 
     async fn send(&self, message: OutboundMessage) -> Result<()> {

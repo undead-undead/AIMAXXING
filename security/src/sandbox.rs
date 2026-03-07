@@ -73,6 +73,34 @@ mod windows_sandbox {
                     &ui_info as *const _ as *const _,
                     size_of::<JOBOBJECT_BASIC_UI_RESTRICTIONS>() as u32,
                 );
+
+                // 3. Set CPU rate control if requested
+                if let Some(cpu_percent) = config.max_cpu_percent {
+                    let mut cpu_info: JOBOBJECT_CPU_RATE_CONTROL_INFORMATION = std::mem::zeroed();
+                    cpu_info.ControlFlags = JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP;
+                    cpu_info.Anonymous.CpuRate = cpu_percent as u32 * 100; // 100% = 10,000
+
+                    SetInformationJobObject(
+                        handle,
+                        JobObjectCpuRateControlInformation,
+                        &cpu_info as *const _ as *const _,
+                        size_of::<JOBOBJECT_CPU_RATE_CONTROL_INFORMATION>() as u32,
+                    );
+                }
+
+                // 4. Set Network rate control if requested
+                if let Some(net_bps) = config.max_net_bps {
+                    let mut net_info: JOBOBJECT_NET_RATE_CONTROL_INFORMATION = std::mem::zeroed();
+                    net_info.ControlFlags = JOB_OBJECT_NET_RATE_CONTROL_ENABLE | JOB_OBJECT_NET_RATE_CONTROL_MAX_BANDWIDTH;
+                    net_info.MaxBandwidth = net_bps;
+
+                    SetInformationJobObject(
+                        handle,
+                        JobObjectNetRateControlInformation,
+                        &net_info as *const _ as *const _,
+                        size_of::<JOBOBJECT_NET_RATE_CONTROL_INFORMATION>() as u32,
+                    );
+                }
                 
                 Some(Self(handle))
             }
@@ -149,7 +177,6 @@ impl NativeShellRuntime {
         Ok(())
     }
 
-
     /// Layer 3 (Output): Secret leak scanner.
     /// Strips API keys / tokens from stdout/stderr before returning to caller.
     fn sanitize_output(stdout: Vec<u8>, stderr: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
@@ -169,6 +196,22 @@ impl NativeShellRuntime {
         }
 
         (clean_stdout.into_bytes(), clean_stderr.into_bytes())
+    }
+
+    /// Layer 1c (macOS): Pre-flight TCC (Transparency, Consent, and Control) checks.
+    ///
+    /// Checks if the current process has enough permissions to avoid silent failures
+    /// in the sandbox. This doesn't block execution but warns the user.
+    #[cfg(target_os = "macos")]
+    fn check_macos_tcc_permissions() {
+        // Attempt to list a directory that requires Full Disk Access
+        let tcc_db = Path::new("/Library/Application Support/com.apple.TCC");
+        if !tcc_db.exists() {
+            warn!(
+                "SECURITY: AIMAXXING may lack 'Full Disk Access' on macOS. \
+                 Some sandboxed tools might fail to access required system resources."
+            );
+        }
     }
 
     /// Layer 2 (Kernel): Build the OS-native sandboxed subprocess command.
@@ -210,6 +253,16 @@ impl NativeShellRuntime {
             }
             // Die with parent to prevent zombie sandboxes
             c.arg("--die-with-parent");
+
+            // cgroups v2: Disk I/O Throttling (Phase 1.2)
+            // In a real-world scenario, the caller would need to ensure the process
+            // is moved to a delegated cgroup where 'io.max' can be written.
+            if let Some(disk_bps) = config.max_disk_bps {
+                debug!(disk_bps = %disk_bps, "Disk I/O throttling requested via cgroups v2 (requires delegation)");
+                // Integration: In a future PR, we will implement a dedicated CgroupManager
+                // that handles user-space delegation and writes to 'io.max'.
+            }
+
             c.arg("--").arg(interpreter).arg(script_path).arg(arguments);
             c
         }
@@ -242,6 +295,9 @@ impl NativeShellRuntime {
                 r#"(version 1)
                    (allow default)
                    {network_policy}
+                   (deny file-read* (subpath "/Library/Keychains"))
+                   (deny file-read* (subpath "/Users/.*/Library/Keychains"))
+                   (deny file-read* (subpath "/Users/.*/Library/Safari"))
                    (deny file-write*)
                    (allow file-write* (subpath "{base_str}"))
                    (allow file-write* (subpath "/tmp"))"#,
@@ -350,6 +406,10 @@ impl SkillRuntime for NativeShellRuntime {
                 }
             }
         }
+
+        // ─── Layer 0.5: macOS TCC Pre-flight ──────────────────────────────
+        #[cfg(target_os = "macos")]
+        Self::check_macos_tcc_permissions();
 
         // ─── Layer 1: Application firewall (AIMAXXING) ───────────────────────
         Self::pre_flight_firewall(arguments, &interpreter)?;

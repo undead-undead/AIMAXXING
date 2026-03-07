@@ -102,6 +102,32 @@ pub enum MediaType {
     Document,
 }
 
+/// A generic webhook event from an external platform (Feishu, Slack, etc.)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookEvent {
+    /// Identifier of the connector (e.g., "feishu", "slack")
+    pub connector_id: String,
+    /// JSON payload from the request body
+    pub payload: serde_json::Value,
+    /// Raw headers if needed for verification
+    pub headers: std::collections::HashMap<String, String>,
+}
+
+impl WebhookEvent {
+    pub fn new(connector_id: impl Into<String>, payload: serde_json::Value) -> Self {
+        Self {
+            connector_id: connector_id.into(),
+            payload,
+            headers: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn with_headers(mut self, headers: std::collections::HashMap<String, String>) -> Self {
+        self.headers = headers;
+        self
+    }
+}
+
 /// Message Bus - central routing for all messages
 /// 
 /// # Architecture
@@ -134,7 +160,7 @@ pub struct MessageBus {
     inbound_tx: mpsc::Sender<InboundMessage>,
     inbound_rx: Arc<tokio::sync::Mutex<mpsc::Receiver<InboundMessage>>>,
     outbound_tx: broadcast::Sender<OutboundMessage>,
-    // outbound_rx removed as broadcast doesn't have a single shared receiver
+    webhook_tx: broadcast::Sender<WebhookEvent>,
 }
 
 impl MessageBus {
@@ -142,11 +168,13 @@ impl MessageBus {
     pub fn new(buffer_size: usize) -> Self {
         let (inbound_tx, inbound_rx) = mpsc::channel(buffer_size);
         let (outbound_tx, _) = broadcast::channel(buffer_size);
+        let (webhook_tx, _) = broadcast::channel(buffer_size);
         
         Self {
             inbound_tx,
             inbound_rx: Arc::new(tokio::sync::Mutex::new(inbound_rx)),
             outbound_tx,
+            webhook_tx,
         }
     }
     
@@ -180,7 +208,17 @@ impl MessageBus {
     pub fn inbound_sender(&self) -> mpsc::Sender<InboundMessage> {
         self.inbound_tx.clone()
     }
-    
+
+    /// Publish a webhook event (from gateway to connectors)
+    pub async fn publish_webhook_event(&self, event: WebhookEvent) -> crate::error::Result<()> {
+        let _ = self.webhook_tx.send(event);
+        Ok(())
+    }
+
+    /// Subscribe to webhook events (connectors listen for external triggers)
+    pub fn subscribe_webhook_event(&self) -> broadcast::Receiver<WebhookEvent> {
+        self.webhook_tx.subscribe()
+    }
 }
 
 impl Clone for MessageBus {
@@ -189,6 +227,7 @@ impl Clone for MessageBus {
             inbound_tx: self.inbound_tx.clone(),
             inbound_rx: Arc::clone(&self.inbound_rx),
             outbound_tx: self.outbound_tx.clone(),
+            webhook_tx: self.webhook_tx.clone(),
         }
     }
 }

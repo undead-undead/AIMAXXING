@@ -54,6 +54,36 @@ impl TelegramConnector {
             Ok(Vec::new())
         }
     }
+
+    /// Internal helper to process a Telegram update object
+    async fn process_update(bus: &MessageBus, config: &TelegramConfig, update: Value) {
+        if let Some(msg) = update.get("message") {
+            let chat_id = msg
+                .get("chat")
+                .and_then(|c| c.get("id"))
+                .map(|id| id.to_string());
+            let text = msg.get("text").and_then(|t| t.as_str());
+
+            if let Some(cid) = chat_id.clone() {
+                if !config.allowed_chat_ids.is_empty() && !config.allowed_chat_ids.contains(&cid) {
+                    warn!("Ignored message from unauthorized chat: {}", cid);
+                    return;
+                }
+            }
+
+            if let (Some(chat_id), Some(text)) = (chat_id, text) {
+                let sender = msg
+                    .get("from")
+                    .and_then(|f| f.get("username").and_then(|u| u.as_str()))
+                    .unwrap_or("unknown");
+
+                info!("Received Telegram message from {}: {}", sender, text);
+
+                let inbound = InboundMessage::new("telegram", sender, chat_id, text);
+                let _ = bus.publish_inbound(inbound).await;
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -88,7 +118,24 @@ impl super::Connector for TelegramConnector {
     }
 
     async fn start(&self, bus: Arc<MessageBus>) -> Result<()> {
-        info!("Telegram Connector started. Polling updates...");
+        info!("Telegram Connector started. Monitoring (Polling + Webhooks)...");
+        
+        let bus_webhook = bus.clone();
+        let mut webhook_rx = bus.subscribe_webhook_event();
+        let config_webhook = self.config.clone();
+
+        // Task A: Webhook Receiver
+        tokio::spawn(async move {
+            while let Ok(event) = webhook_rx.recv().await {
+                if event.connector_id != "telegram" {
+                    continue;
+                }
+                // Telegram webhooks usually send the "Update" object directly
+                Self::process_update(&bus_webhook, &config_webhook, event.payload).await;
+            }
+        });
+
+        // Task B: Long Polling (Fallback/Self-contained)
         let mut offset = 0;
         let bus = bus.clone();
         let config = self.config.clone();
@@ -97,45 +144,10 @@ impl super::Connector for TelegramConnector {
             match self.get_updates(offset).await {
                 Ok(updates) => {
                     for update in updates {
-                        // Update offset
                         if let Some(update_id) = update.get("update_id").and_then(|v| v.as_i64()) {
                             offset = update_id + 1;
                         }
-
-                        // Parse message
-                        if let Some(msg) = update.get("message") {
-                            let chat_id = msg
-                                .get("chat")
-                                .and_then(|c| c.get("id"))
-                                .map(|id| id.to_string());
-                            let text = msg.get("text").and_then(|t| t.as_str());
-
-                            // Security check: Only allow configured chats
-                            if let Some(cid) = chat_id.clone() {
-                                if !config.allowed_chat_ids.is_empty()
-                                    && !config.allowed_chat_ids.contains(&cid)
-                                {
-                                    warn!("Ignored message from unauthorized chat: {}", cid);
-                                    continue;
-                                }
-                            }
-
-                            if let (Some(chat_id), Some(text)) = (chat_id, text) {
-                                let sender = msg
-                                    .get("from")
-                                    .and_then(|f| f.get("username").and_then(|u| u.as_str()))
-                                    .unwrap_or("unknown");
-
-                                info!("Received Telegram message from {}: {}", sender, text);
-
-                                let inbound =
-                                    InboundMessage::new("telegram", sender, chat_id, text);
-
-                                if let Err(e) = bus.publish_inbound(inbound).await {
-                                    error!("Failed to publish inbound message: {}", e);
-                                }
-                            }
-                        }
+                        Self::process_update(&bus, &config, update).await;
                     }
                 }
                 Err(e) => {
@@ -143,7 +155,6 @@ impl super::Connector for TelegramConnector {
                     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                 }
             }
-            // Small sleep to prevent busy loop if long polling fails immediately
             sleep(Duration::from_millis(100)).await;
         }
     }

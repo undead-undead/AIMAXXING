@@ -82,6 +82,10 @@ pub struct SkillExecutionConfig {
     pub max_memory_mb: Option<usize>,
     /// Maximum CPU percentage (0-100)
     pub max_cpu_percent: Option<usize>,
+    /// Maximum network bandwidth in bytes per second
+    pub max_net_bps: Option<u64>,
+    /// Maximum disk I/O in bytes per second
+    pub max_disk_bps: Option<u64>,
     /// Custom environment variables
     pub env_vars: HashMap<String, String>,
 }
@@ -95,6 +99,8 @@ impl Default for SkillExecutionConfig {
             use_browser: false,
             max_memory_mb: None,
             max_cpu_percent: None,
+            max_net_bps: None,
+            max_disk_bps: None,
             env_vars: HashMap::new(),
         }
     }

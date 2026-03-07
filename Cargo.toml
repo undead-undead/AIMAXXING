@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "core",
+    "brain",
     "providers", 
     "engram",
     "gateway", 
@@ -26,7 +26,7 @@ categories = ["science", "simulation", "asynchronous"]
 
 [workspace.dependencies]
 # Internal crates
-brain = { path = "core", version = "0.3.5" }
+brain = { path = "brain", version = "0.3.5" }
 providers = { path = "providers", version = "0.3.5" }
 engram = { path = "engram", version = "0.3.5" }
 connectors = { path = "connectors", version = "0.3.5" }

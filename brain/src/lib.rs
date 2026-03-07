@@ -1,6 +1,6 @@
-//! # AIMAXXING Core - AI Agent for Trading
+//! # AIMAXXING Brain - AI Agent framework
 //!
-//! Core types, traits, and abstractions for the AIMAXXING framework.
+//! Brain types, traits, and abstractions for the AIMAXXING framework.
 //!
 //! This crate provides:
 //! - Agent system (`agent`)
