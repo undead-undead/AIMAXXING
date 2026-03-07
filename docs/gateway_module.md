@@ -24,7 +24,8 @@ This directory defines the Axum routers and handlers exposed to clients (e.g., t
 - **`bridge.rs`**: The chat interface. Exposes `POST /v1/chat/completions` (OpenAI-compatible) and WebSocket upgrade endpoints for real-time agent conversations and streaming.
 - **`tool.rs`**: Endpoints for registering, unregistering, and listing dynamic Tools/Skills that an Agent can use.
 - **`knowledge.rs`**: Endpoints to ingest data into the `engram` vector database and manage the active knowledge indexes.
-- **`security.rs`**: Handles authentication (API keys) and authorization for API endpoints.
+- **`security.rs`**: Implements the **ApiGuard** middleware. It enforces `X-API-Key` validation for non-localhost connections and provides handlers for retrieving the `internal_key`.
+- **Vault & Media**: Dedicated routers for encrypted secret CRUD (`/api/vault`) and local audio processing (`/api/media`).
 
 ### 2. `blueprints/` (Agent Templates)
 Contains pre-defined agent architectures. Blueprints are YAML or JSON configurations that define an agent's starting system prompt, preferred LLM, temperature, and specific skill sets (e.g., a "Coder" blueprint vs. a "Trader" blueprint).
@@ -42,5 +43,6 @@ While the `brain` executes thought loops and `engram` remembers facts, the `gate
 Its key responsibilities include:
 1. **Network Interface**: Providing a stable API that frontends (like `aimaxxing-panel`) or generic OpenAI clients (like Cursor or Continue.dev) can connect to.
 2. **Fleet Management**: Running multiple independent agents simultaneously in the same process, managing their lifecycles, and routing messages to the correct instance.
-3. **Security Boundary**: Enforcing API key authentication before anyone can prompt an Agent or access the knowledge base.
+3. **Security Boundary**: Enforcing **ApiGuard** verification, protecting the backend from unauthorized remote commands while keeping local access seamless.
+4. **Local Services Hub**: Serving as the gateway to heavy local runtimes like **Whisper STT** and **Piper TTS**, abstracting complex ML models behind simple HTTP endpoints.
 4. **Proxying**: Sitting between the client and the `providers`, ensuring prompt injection checks and rate limits are enforced before paying for LLM tokens.

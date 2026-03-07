@@ -43,8 +43,11 @@ The `engram/src/` directory contains the building blocks for creating a robust m
   - Features dynamic distance metric selection, including standard `SimdCosineDistance` and **`HyperbolicPoincareDistance`** for mapping hierarchical "Layer 2" data efficiently.
 
 ### 5. Agent Integration
-- **`agent_memory.rs`**: The bridge between `engram` and `brain`. Defines how an Agent saves conversation histories and structured memories into the storage engine.
 - **`tool.rs`**: Exposes standard Tools that the LLM can use to directly query the `engram` database.
+
+### 6. Local Media Engines
+- **`stt/` (Speech-to-Text)**: Implements a local **Whisper** runner via `candle` for offline transcription. Supports multi-language models and dynamic swapping.
+- **`tts/` (Text-to-Speech)**: Implements high-speed neural synthesis using **Piper**. Supports various local voices (.onnx) for low-latency audio response.
 
 ## 🚀 Purpose
 
